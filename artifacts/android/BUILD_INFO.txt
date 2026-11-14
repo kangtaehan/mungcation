@@ -1,0 +1,6 @@
+﻿Mungcation 0.4.0+4 Android debug APK
+APK: D:\MungcationDev\artifacts\android\app-debug.apk
+SHA-256: B249048979FDD82FB549F5D69FC48D7706001083E260629877D769A0D94D82B2
+Size: 159601850 bytes
+Build succeeded. APK v2 signature verified. Android device runtime tests remain.
+C drive copy failed due to insufficient space; the completed APK is on D drive.

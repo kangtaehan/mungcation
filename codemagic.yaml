@@ -1,0 +1,49 @@
+workflows:
+  ios-validation:
+    name: iOS unsigned validation
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: 3.41.9
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Analyze, test and compile iOS
+        script: bash tool/verify_ios.sh
+    artifacts:
+      - build/ios/iphonesimulator/Runner.app
+      - /tmp/xcodebuild_logs/*.log
+
+  # This workflow remains manual until the Codemagic integration name below
+  # and the App Store Connect app record are configured.
+  ios-testflight:
+    name: iOS TestFlight internal
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: MUNGCATION_APP_STORE_CONNECT_KEY
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.mungcation.mungcation
+      flutter: 3.41.9
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Apply App Store signing profiles
+        script: xcode-project use-profiles
+      - name: Install dependencies and test
+        script: |
+          flutter pub get
+          pod install --project-directory=ios
+          flutter analyze
+          flutter test --concurrency=1
+      - name: Build signed IPA
+        script: flutter build ipa --release --build-name=0.4.0 --build-number=$PROJECT_BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

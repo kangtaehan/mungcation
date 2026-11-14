@@ -38,6 +38,7 @@ class PreviewShell extends StatefulWidget {
 class _PreviewShellState extends State<PreviewShell> {
   static const _equipmentKey = 'mungcation.preview.equipment';
   int tab = 0;
+  int previewPlace = -1;
   bool walking = false;
   Set<String> equipment = {'ribbon'};
   final furniture = <String, List<double>>{
@@ -72,7 +73,10 @@ class _PreviewShellState extends State<PreviewShell> {
       next.add(item.id);
     }
     try {
-      await SharedPreferencesAsync().setStringList(_equipmentKey, next.toList());
+      await SharedPreferencesAsync().setStringList(
+        _equipmentKey,
+        next.toList(),
+      );
     } catch (_) {
       // Keep the current preview session usable when browser storage is blocked.
     }
@@ -156,9 +160,53 @@ class _PreviewShellState extends State<PreviewShell> {
       aspectRatio: 1.35,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
-        child: CustomPaint(painter: PreviewMapPainter()),
+        child: GestureDetector(
+          onTapUp: (details) {
+            final width = MediaQuery.sizeOf(context).width - 40;
+            setState(
+              () => previewPlace = details.localPosition.dx < width / 2 ? 0 : 1,
+            );
+          },
+          child: CustomPaint(
+            painter: PreviewMapPainter(selectedPlace: previewPlace),
+          ),
+        ),
       ),
     ),
+    const SizedBox(height: 10),
+    const Text('지도 위 장소를 눌러 산책 경로를 선택해 보세요.'),
+    if (previewPlace >= 0) ...[
+      const SizedBox(height: 10),
+      Card(
+        color: const Color(0xFFF6F1E7),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                previewPlace == 0 ? '망원 반려견 놀이터' : '멍멍 동반 카페',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(previewPlace == 0 ? '1.8 km · 약 28분' : '2.6 km · 약 39분'),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () {
+                  setState(() => walking = true);
+                  previewOnly('강아지 내비게이션 산책');
+                },
+                icon: const Icon(Icons.pets),
+                label: const Text('이 경로로 산책 시작'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
     const SizedBox(height: 14),
     Row(
       children: const [
@@ -271,16 +319,31 @@ class _Metric extends StatelessWidget {
 }
 
 class PreviewMapPainter extends CustomPainter {
+  final int selectedPlace;
+  const PreviewMapPainter({this.selectedPlace = -1});
+
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawColor(const Color(0xFFE8EFE6), BlendMode.src);
+    canvas.drawColor(const Color(0xFFB9D996), BlendMode.src);
+    final pixel = Paint()..color = const Color(0x1A205C40);
+    for (var x = 0.0; x < size.width; x += 12) {
+      canvas.drawRect(Rect.fromLTWH(x, 0, 1, size.height), pixel);
+    }
+    for (var y = 0.0; y < size.height; y += 12) {
+      canvas.drawRect(Rect.fromLTWH(0, y, size.width, 1), pixel);
+    }
+    final water = Paint()..color = const Color(0xFF8FC5D8);
+    canvas.drawRect(
+      Rect.fromLTWH(0, size.height * .72, size.width, size.height * .28),
+      water,
+    );
     final road = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 22
+      ..color = const Color(0xFFF7E2AF)
+      ..strokeWidth = 28
       ..style = PaintingStyle.stroke;
     final route = Paint()
-      ..color = forest
-      ..strokeWidth = 6
+      ..color = const Color(0xFF2F7452)
+      ..strokeWidth = 7
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
     final path = Path()
@@ -295,20 +358,50 @@ class PreviewMapPainter extends CustomPainter {
       );
     canvas.drawPath(path, road);
     canvas.drawPath(path, route);
-    for (final point in [const Offset(.08, .75), const Offset(.9, .22)]) {
-      canvas.drawCircle(
-        Offset(size.width * point.dx, size.height * point.dy),
-        12,
-        Paint()..color = const Color(0xFFE8B85B),
+    final places = [const Offset(.28, .32), const Offset(.72, .27)];
+    for (var i = 0; i < places.length; i++) {
+      final center = Offset(
+        size.width * places[i].dx,
+        size.height * places[i].dy,
       );
-      canvas.drawCircle(
-        Offset(size.width * point.dx, size.height * point.dy),
-        5,
-        Paint()..color = forest,
+      final marker = Paint()
+        ..color = i == selectedPlace
+            ? const Color(0xFFFFD66B)
+            : const Color(0xFFFFF4D8);
+      final markerBorder = Paint()
+        ..color = forest
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3;
+      canvas.drawRect(
+        Rect.fromCenter(center: center, width: 44, height: 44),
+        marker,
       );
+      canvas.drawRect(
+        Rect.fromCenter(center: center, width: 44, height: 44),
+        markerBorder,
+      );
+      final icon = TextPainter(
+        text: TextSpan(
+          text: i == 0 ? '🌳' : '🐾',
+          style: const TextStyle(fontSize: 24),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      icon.paint(canvas, center - Offset(icon.width / 2, icon.height / 2));
     }
+    canvas.save();
+    canvas.translate(size.width * .08, size.height * .68);
+    final dogDark = Paint()..color = const Color(0xFF3D2B22);
+    final dogFur = Paint()..color = const Color(0xFFC77A43);
+    canvas.drawRect(const Rect.fromLTWH(0, 6, 34, 28), dogDark);
+    canvas.drawRect(const Rect.fromLTWH(6, 3, 22, 26), dogFur);
+    canvas.drawRect(const Rect.fromLTWH(9, 11, 4, 4), dogDark);
+    canvas.drawRect(const Rect.fromLTWH(21, 11, 4, 4), dogDark);
+    canvas.drawRect(const Rect.fromLTWH(15, 19, 5, 4), dogDark);
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant PreviewMapPainter oldDelegate) =>
+      oldDelegate.selectedPlace != selectedPlace;
 }

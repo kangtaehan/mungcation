@@ -19,6 +19,12 @@ void main() {
       expect(find.text('멍케이션'), findsOneWidget);
       expect(find.text('산책 시작하기'), findsOneWidget);
       expect(find.text('오늘의 산책 기록'), findsOneWidget);
+      await tester.tap(find.text('지도'));
+      await tester.pumpAndSettle();
+      final map = find.byType(CustomPaint).first;
+      await tester.tapAt(tester.getCenter(map));
+      await tester.pumpAndSettle();
+      expect(find.text('이 경로로 산책 시작'), findsOneWidget);
       await tester.tap(find.text('상점'));
       await tester.pumpAndSettle();
       expect(find.text('핑크 리본'), findsOneWidget);

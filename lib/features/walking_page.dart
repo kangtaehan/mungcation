@@ -31,12 +31,62 @@ class WalkingPageState extends State<WalkingPage> {
   List<WalkingRoute> routes = [];
   int selectedRoute = 0, centerRequest = 0, _request = 0;
   bool loading = false, finishing = false;
+  bool discoveredNearby = false;
   String? error;
   PlaceInfo? destination;
   @override
   void dispose() {
     query.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant WalkingPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.visible &&
+        !oldWidget.visible &&
+        !discoveredNearby &&
+        widget.session.current != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => discoverNearby());
+    }
+  }
+
+  Future<void> discoverNearby() async {
+    if (loading || discoveredNearby) return;
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      if (widget.session.current == null) await widget.session.locate();
+      if (!mounted) return;
+      final center = widget.session.current;
+      if (center == null) {
+        setState(() => error = '현재 위치를 확인하면 주변 산책 장소를 보여드려요.');
+        return;
+      }
+      final results = await Future.wait([
+        widget.maps.search('공원', center),
+        widget.maps.search('애견 카페', center),
+        widget.maps.search('동물병원', center),
+      ]);
+      final unique = <String, PlaceInfo>{};
+      for (final place in results.expand((items) => items)) {
+        unique.putIfAbsent(place.id, () => place);
+      }
+      if (mounted) {
+        setState(() {
+          places = unique.values.take(30).toList();
+          discoveredNearby = true;
+          centerRequest++;
+        });
+        widget.session.places = places;
+      }
+    } catch (_) {
+      if (mounted) setState(() => error = '주변 장소를 불러오지 못했어요. 검색으로 다시 시도해 주세요.');
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
 
   Future<void> search() async {
@@ -195,9 +245,23 @@ class WalkingPageState extends State<WalkingPage> {
               ),
             ),
           ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonalIcon(
+              onPressed: loading
+                  ? null
+                  : () {
+                      discoveredNearby = false;
+                      discoverNearby();
+                    },
+              icon: const Icon(Icons.near_me_outlined),
+              label: const Text('내 주변 공원 · 애견 장소 보기'),
+            ),
+          ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 300,
+            height: 360,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: WalkMap(
@@ -266,6 +330,34 @@ class WalkingPageState extends State<WalkingPage> {
                   });
                 },
                 icon: const Icon(Icons.close),
+              ),
+            ),
+          if (routes.isNotEmpty)
+            Card(
+              elevation: 0,
+              color: const Color(0xFFF6F1E7),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.pets, color: forest, size: 32),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            destination?.name ?? '선택한 산책 경로',
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          Text(
+                            '${(routes[selectedRoute].meters / 1000).toStringAsFixed(2)} km · 약 ${(routes[selectedRoute].seconds / 60).ceil()}분',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           if (routes.isNotEmpty)
@@ -359,7 +451,13 @@ class WalkingPageState extends State<WalkingPage> {
             FilledButton.icon(
               onPressed: waiting ? null : begin,
               icon: const Icon(Icons.pets),
-              label: Text(waiting ? '위치 확인 중…' : '산책 시작하기'),
+              label: Text(
+                waiting
+                    ? '위치 확인 중…'
+                    : routes.isNotEmpty
+                    ? '이 경로로 산책 시작'
+                    : '산책 시작하기',
+              ),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(56),
               ),

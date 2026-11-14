@@ -235,8 +235,14 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                             children: [
                               DecoratedBox(
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
+                                  color: const Color(0xFFFFF4D8),
+                                  border: Border.all(color: forest, width: 2),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x55205C40),
+                                      offset: Offset(3, 3),
+                                    ),
+                                  ],
                                 ),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
@@ -255,10 +261,10 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                                   ),
                                 ),
                               ),
-                              const Icon(
-                                Icons.location_on,
+                              Icon(
+                                place.rewardEligible ? Icons.park : Icons.pets,
                                 color: forest,
-                                size: 26,
+                                size: 25,
                               ),
                             ],
                           ),
@@ -272,15 +278,29 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                       height: 34,
                       child: Semantics(
                         label: '마지막으로 받은 위치',
-                        child: CircleAvatar(
-                          backgroundColor: Colors.white,
-                          child: Icon(Icons.pets, color: Colors.blue, size: 22),
+                        child: const DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color(0xFFFFF4D8),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(0x66000000),
+                                offset: Offset(2, 3),
+                              ),
+                            ],
+                          ),
+                          child: CustomPaint(painter: PixelDogMarkerPainter()),
                         ),
                       ),
                     ),
                 ],
               ),
             ],
+          ),
+          const Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(painter: PixelMapTexturePainter()),
+            ),
           ),
           if (tileError)
             Align(
@@ -351,4 +371,50 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
       );
     },
   );
+}
+
+class PixelDogMarkerPainter extends CustomPainter {
+  const PixelDogMarkerPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final unit = size.shortestSide / 8;
+    final dark = Paint()..color = const Color(0xFF3D2B22);
+    final fur = Paint()..color = const Color(0xFFC77A43);
+    final cream = Paint()..color = const Color(0xFFFFD59B);
+    void block(double x, double y, double w, double h, Paint paint) => canvas
+        .drawRect(Rect.fromLTWH(x * unit, y * unit, w * unit, h * unit), paint);
+    block(2, 2, 4, 4, dark);
+    block(1, 2, 2, 3, dark);
+    block(5, 2, 2, 3, dark);
+    block(2.5, 2.5, 3, 3, fur);
+    block(2.5, 4.5, 2, 1, cream);
+    block(3, 3, .7, .7, dark);
+    block(4.6, 3, .7, .7, dark);
+    block(3.8, 4.1, .7, .7, dark);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class PixelMapTexturePainter extends CustomPainter {
+  const PixelMapTexturePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x11205C40)
+      ..strokeWidth = 1;
+    const step = 12.0;
+    for (var x = 0.0; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (var y = 0.0; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

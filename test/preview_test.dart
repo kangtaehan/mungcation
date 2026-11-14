@@ -16,7 +16,9 @@ void main() {
         find.text('Safari 미리보기 · GPS, 카메라, 파일 저장은 실제 iOS 앱에서 확인'),
         findsOneWidget,
       );
-      expect(find.text('오늘도 함께 걸어볼까요?'), findsOneWidget);
+      expect(find.text('멍케이션'), findsOneWidget);
+      expect(find.text('산책 시작하기'), findsOneWidget);
+      expect(find.text('오늘의 산책 기록'), findsOneWidget);
       await tester.tap(find.text('상점'));
       await tester.pumpAndSettle();
       expect(find.text('핑크 리본'), findsOneWidget);

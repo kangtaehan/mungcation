@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/ui.dart';
 import 'models/catalog.dart';
 import 'widgets/pet_room.dart';
+import 'widgets/home_dashboard.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +37,7 @@ class PreviewShell extends StatefulWidget {
 
 class _PreviewShellState extends State<PreviewShell> {
   static const _equipmentKey = 'mungcation.preview.equipment';
-  int tab = 0, coins = 120;
+  int tab = 0;
   bool walking = false;
   Set<String> equipment = {'ribbon'};
   final furniture = <String, List<double>>{
@@ -83,20 +84,6 @@ class _PreviewShellState extends State<PreviewShell> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('멍케이션'),
-      actions: [
-        Container(
-          margin: const EdgeInsets.only(right: 14),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: beige,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text('🦴 $coins P'),
-        ),
-      ],
-    ),
     body: SafeArea(
       child: Column(
         children: [
@@ -114,11 +101,15 @@ class _PreviewShellState extends State<PreviewShell> {
       ),
     ),
     bottomNavigationBar: NavigationBar(
+      height: 78,
+      backgroundColor: const Color(0xFFFFFCF8),
+      elevation: 0,
+      indicatorColor: Colors.transparent,
       selectedIndex: tab,
       onDestinationSelected: (value) => setState(() => tab = value),
       destinations: const [
         NavigationDestination(icon: Icon(Icons.home_outlined), label: '홈'),
-        NavigationDestination(icon: Icon(Icons.directions_walk), label: '산책'),
+        NavigationDestination(icon: Icon(Icons.map_outlined), label: '지도'),
         NavigationDestination(
           icon: Icon(Icons.storefront_outlined),
           label: '상점',
@@ -135,33 +126,25 @@ class _PreviewShellState extends State<PreviewShell> {
     ),
   );
 
-  Widget home() => page([
-    const Text(
-      '오늘도 함께 걸어볼까요?',
-      style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
-    ),
-    const SizedBox(height: 14),
-    PetRoom(
+  Widget home() => HomeDashboard(
+    room: PetRoom(
       equipped: 'none',
       equipment: equipment,
       name: '몽이',
-      character: 'brown',
+      character: 'original',
       furniture: furniture,
       onMove: (id, position) => setState(() => furniture[id] = position),
     ),
-    const SizedBox(height: 14),
-    Card(
-      child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.pets)),
-        title: const Text('몽이 · Lv.2'),
-        subtitle: const Text('오늘 1.2km · 24분 · 1회'),
-        trailing: FilledButton(
-          onPressed: () => setState(() => tab = 1),
-          child: const Text('산책하기'),
-        ),
-      ),
-    ),
-  ]);
+    distance: '2.8 km',
+    duration: '42분',
+    walkInProgress: walking,
+    onWalk: () => setState(() => tab = 1),
+    onMap: () => setState(() => tab = 1),
+    onPlaces: () => previewOnly('동반 매장 검색'),
+    onDecorate: () => setState(() => tab = 2),
+    onHistory: () => setState(() => tab = 3),
+    onNotifications: () => feedback(context, '새로운 산책 알림이 있어요.'),
+  );
 
   Widget walk() => page([
     const Text(

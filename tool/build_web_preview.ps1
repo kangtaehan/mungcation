@@ -1,6 +1,7 @@
 param(
     [string]$WorkRoot = 'D:\MungcationDev\WebBuilds',
-    [string]$OutputRoot = 'D:\MungcationDev\artifacts\web-preview'
+    [string]$OutputRoot = 'D:\MungcationDev\artifacts\web-preview',
+    [string]$BaseHref = '/'
 )
 $ErrorActionPreference = 'Stop'
 $sourceRoot = Split-Path -Parent $PSScriptRoot
@@ -22,7 +23,7 @@ try {
     try {
         flutter pub get
         if ($LASTEXITCODE -ne 0) { throw 'Flutter dependency resolution failed.' }
-        flutter build web --target lib/main_preview.dart --release
+        flutter build web --target lib/main_preview.dart --release --base-href $BaseHref
         if ($LASTEXITCODE -ne 0) { throw 'Flutter web preview build failed.' }
     } finally {
         Pop-Location

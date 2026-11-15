@@ -36,6 +36,24 @@ TrackOverlays trackOverlays(List<GeoSample> samples) {
   );
 }
 
+List<GeoSample> spacedRoutePaws(
+  List<GeoSample> samples, {
+  double spacing = 80,
+  int limit = 120,
+}) {
+  final valid = samples.where((sample) => sample.valid).toList();
+  if (valid.isEmpty) return const [];
+  final paws = <GeoSample>[valid.first];
+  var last = valid.first;
+  for (final sample in valid.skip(1)) {
+    if (distanceBetween(last, sample) < spacing) continue;
+    paws.add(sample);
+    last = sample;
+    if (paws.length >= limit) break;
+  }
+  return paws;
+}
+
 class AndroidWalkMap extends StatefulWidget {
   final List<GeoSample> samples, route;
   final List<PlaceInfo> places;
@@ -107,6 +125,14 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
     }
   }
 
+  void zoom(double change) {
+    if (!ready) return;
+    controller.move(
+      controller.camera.center,
+      (controller.camera.zoom + change).clamp(3, 19).toDouble(),
+    );
+  }
+
   @override
   void didUpdateWidget(AndroidWalkMap old) {
     super.didUpdateWidget(old);
@@ -139,6 +165,7 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
     builder: (context, _) {
       final config = configuration.value,
           overlays = trackOverlays(widget.samples),
+          routePaws = spacedRoutePaws(widget.route),
           points = boundsPoints;
       final start = widget.current?.valid == true
           ? point(widget.current!)
@@ -232,6 +259,21 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                         ),
                       ),
                     ),
+                  for (final paw in routePaws)
+                    Marker(
+                      point: point(paw),
+                      width: 18,
+                      height: 18,
+                      child: const IgnorePointer(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color(0xCCFFF8E9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.pets, size: 12, color: forest),
+                        ),
+                      ),
+                    ),
                   for (final place in widget.places.where(
                     (p) => p.location.valid,
                   ))
@@ -256,21 +298,31 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                       height: 48,
                       child: Semantics(
                         label: '마지막으로 받은 위치',
-                        child: const DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Color(0xFFFFF4D8),
-                            shape: BoxShape.circle,
-                            border: Border.fromBorderSide(
-                              BorderSide(color: Colors.white, width: 3),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Color(0x66205C40),
-                                offset: Offset(3, 4),
+                        child: TweenAnimationBuilder<double>(
+                          key: ValueKey(widget.current!.time),
+                          tween: Tween(begin: .82, end: 1),
+                          duration: const Duration(milliseconds: 550),
+                          curve: Curves.elasticOut,
+                          builder: (context, scale, child) =>
+                              Transform.scale(scale: scale, child: child),
+                          child: const DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Color(0xFFFFF4D8),
+                              shape: BoxShape.circle,
+                              border: Border.fromBorderSide(
+                                BorderSide(color: Colors.white, width: 3),
                               ),
-                            ],
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color(0x66205C40),
+                                  offset: Offset(3, 4),
+                                ),
+                              ],
+                            ),
+                            child: CustomPaint(
+                              painter: PixelDogMarkerPainter(),
+                            ),
                           ),
-                          child: CustomPaint(painter: PixelDogMarkerPainter()),
                         ),
                       ),
                     ),
@@ -287,6 +339,15 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
             top: 12,
             left: 12,
             child: IgnorePointer(child: MungcationMapBadge()),
+          ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: PixelMapControls(
+              onZoomIn: () => zoom(1),
+              onZoomOut: () => zoom(-1),
+              onCenter: () => fit(center: widget.current?.valid == true),
+            ),
           ),
           if (tileError)
             Align(
@@ -401,10 +462,7 @@ class PixelPlaceMarker extends StatelessWidget {
         const Color(0xFFD65F5F),
       ),
       PixelPlaceKind.stay => (Icons.bed, const Color(0xFF6B6FA9)),
-      PixelPlaceKind.restaurant => (
-        Icons.restaurant,
-        const Color(0xFFD8893B),
-      ),
+      PixelPlaceKind.restaurant => (Icons.restaurant, const Color(0xFFD8893B)),
       PixelPlaceKind.pet => (Icons.pets, forest),
     };
     return Column(
@@ -418,7 +476,10 @@ class PixelPlaceMarker extends StatelessWidget {
             border: Border.all(color: color, width: 2),
             borderRadius: BorderRadius.circular(4),
             boxShadow: [
-              BoxShadow(color: color.withValues(alpha: .32), offset: const Offset(3, 3)),
+              BoxShadow(
+                color: color.withValues(alpha: .32),
+                offset: const Offset(3, 3),
+              ),
             ],
           ),
           child: Text(
@@ -480,6 +541,60 @@ class MungcationMapBadge extends StatelessWidget {
           ),
         ],
       ),
+    ),
+  );
+}
+
+class PixelMapControls extends StatelessWidget {
+  final VoidCallback onZoomIn, onZoomOut, onCenter;
+  const PixelMapControls({
+    super.key,
+    required this.onZoomIn,
+    required this.onZoomOut,
+    required this.onCenter,
+  });
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      PixelMapButton(tooltip: '확대', icon: Icons.add, onPressed: onZoomIn),
+      const SizedBox(height: 7),
+      PixelMapButton(tooltip: '축소', icon: Icons.remove, onPressed: onZoomOut),
+      const SizedBox(height: 7),
+      PixelMapButton(
+        tooltip: '현재 위치로 이동',
+        icon: Icons.pets,
+        onPressed: onCenter,
+      ),
+    ],
+  );
+}
+
+class PixelMapButton extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+  const PixelMapButton({
+    super.key,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: const Color(0xEFFFF8E9),
+    shape: RoundedRectangleBorder(
+      side: const BorderSide(color: forest, width: 2),
+      borderRadius: BorderRadius.circular(5),
+    ),
+    elevation: 3,
+    shadowColor: const Color(0x66205C40),
+    child: IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      visualDensity: VisualDensity.compact,
+      icon: Icon(icon, color: forest, size: 20),
     ),
   );
 }

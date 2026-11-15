@@ -17,6 +17,22 @@ class MemoryTiles extends TileProvider {
 }
 
 void main() {
+  test('planned route paws are spaced and capped', () {
+    final now = DateTime.now();
+    final samples = List.generate(
+      30,
+      (index) => GeoSample(37.5 + index * .001, 127, 5, now),
+    );
+    final paws = spacedRoutePaws(samples, spacing: 80, limit: 5);
+    expect(paws, hasLength(5));
+    for (var index = 1; index < paws.length; index++) {
+      expect(
+        distanceBetween(paws[index - 1], paws[index]),
+        greaterThanOrEqualTo(80),
+      );
+    }
+  });
+
   testWidgets(
     'Android map displays discontinuous paths, attribution and tappable places without a key',
     (tester) async {
@@ -68,6 +84,9 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(FlutterMap), findsOneWidget);
+      expect(find.byTooltip('확대'), findsOneWidget);
+      expect(find.byTooltip('축소'), findsOneWidget);
+      expect(find.byTooltip('현재 위치로 이동'), findsOneWidget);
       expect(find.text('멍케이션 지도'), findsOneWidget);
       expect(find.text('© OpenStreetMap contributors'), findsOneWidget);
       expect(

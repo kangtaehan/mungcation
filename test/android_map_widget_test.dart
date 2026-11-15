@@ -68,6 +68,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(FlutterMap), findsOneWidget);
+      expect(find.text('멍케이션 지도'), findsOneWidget);
       expect(find.text('© OpenStreetMap contributors'), findsOneWidget);
       expect(
         tester
@@ -76,7 +77,8 @@ void main() {
             .length,
         2,
       );
-      await tester.tap(find.text('+30P'));
+      expect(pixelPlaceKind(place), PixelPlaceKind.park);
+      await tester.tap(find.text('공원 · +30P'));
       await tester.pumpAndSettle();
       expect(selected, 'park');
       expect(tester.takeException(), isNull);

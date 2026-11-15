@@ -36,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Test map design
+        run: flutter test test/android_map_widget_test.dart
+
       - name: Build debug APK
         run: flutter build apk --debug
 

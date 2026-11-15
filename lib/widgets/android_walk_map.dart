@@ -164,20 +164,26 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
               },
             ),
             children: [
-              TileLayer(
-                key: ValueKey('${config.tiles}-$retry'),
-                urlTemplate: config.tiles,
-                userAgentPackageName: 'com.mungcation.mungcation',
-                maxNativeZoom: 19,
-                tileProvider: widget.tileProvider,
-                keepBuffer: 0,
-                panBuffer: 0,
-                errorTileCallback: (tile, error, stack) {
-                  if (!tileError)
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) setState(() => tileError = true);
-                    });
-                },
+              ColorFiltered(
+                colorFilter: const ColorFilter.mode(
+                  Color(0x24FFD9A8),
+                  BlendMode.softLight,
+                ),
+                child: TileLayer(
+                  key: ValueKey('${config.tiles}-$retry'),
+                  urlTemplate: config.tiles,
+                  userAgentPackageName: 'com.mungcation.mungcation',
+                  maxNativeZoom: 19,
+                  tileProvider: widget.tileProvider,
+                  keepBuffer: 0,
+                  panBuffer: 0,
+                  errorTileCallback: (tile, error, stack) {
+                    if (!tileError)
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) setState(() => tileError = true);
+                      });
+                  },
+                ),
               ),
               PolylineLayer(
                 polylines: [
@@ -195,9 +201,18 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                           .where((p) => p.valid)
                           .map(point)
                           .toList(),
-                      color: Colors.blue,
-                      strokeWidth: 4,
-                      pattern: StrokePattern.dashed(segments: [8, 5]),
+                      color: const Color(0xFFFFF1D2),
+                      strokeWidth: 9,
+                    ),
+                  if (widget.route.length > 1)
+                    Polyline(
+                      points: widget.route
+                          .where((p) => p.valid)
+                          .map(point)
+                          .toList(),
+                      color: const Color(0xFF28734E),
+                      strokeWidth: 5,
+                      pattern: StrokePattern.dashed(segments: [10, 4]),
                     ),
                 ],
               ),
@@ -222,70 +237,36 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                   ))
                     Marker(
                       point: point(place.location),
-                      width: 110,
-                      height: 56,
+                      width: 126,
+                      height: 68,
                       child: GestureDetector(
                         onTap: () => widget.onPlace?.call(place.id),
                         child: Semantics(
                           label:
                               '${place.name}, ${place.rewardEligible ? '공원 방문 최대 30포인트' : '장소 상세'}',
                           button: true,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF4D8),
-                                  border: Border.all(color: forest, width: 2),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0x55205C40),
-                                      offset: Offset(3, 3),
-                                    ),
-                                  ],
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 3,
-                                  ),
-                                  child: Text(
-                                    place.rewardEligible ? '+30P' : place.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: forest,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Icon(
-                                place.rewardEligible ? Icons.park : Icons.pets,
-                                color: forest,
-                                size: 25,
-                              ),
-                            ],
-                          ),
+                          child: PixelPlaceMarker(place: place),
                         ),
                       ),
                     ),
                   if (widget.current?.valid == true)
                     Marker(
                       point: point(widget.current!),
-                      width: 34,
-                      height: 34,
+                      width: 48,
+                      height: 48,
                       child: Semantics(
                         label: '마지막으로 받은 위치',
                         child: const DecoratedBox(
                           decoration: BoxDecoration(
                             color: Color(0xFFFFF4D8),
                             shape: BoxShape.circle,
+                            border: Border.fromBorderSide(
+                              BorderSide(color: Colors.white, width: 3),
+                            ),
                             boxShadow: [
                               BoxShadow(
-                                color: Color(0x66000000),
-                                offset: Offset(2, 3),
+                                color: Color(0x66205C40),
+                                offset: Offset(3, 4),
                               ),
                             ],
                           ),
@@ -301,6 +282,11 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
             child: IgnorePointer(
               child: CustomPaint(painter: PixelMapTexturePainter()),
             ),
+          ),
+          const Positioned(
+            top: 12,
+            left: 12,
+            child: IgnorePointer(child: MungcationMapBadge()),
           ),
           if (tileError)
             Align(
@@ -370,6 +356,131 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
         ],
       );
     },
+  );
+}
+
+enum PixelPlaceKind { park, cafe, hospital, stay, restaurant, pet }
+
+PixelPlaceKind pixelPlaceKind(PlaceInfo place) {
+  final value = '${place.category} ${place.name}'.toLowerCase();
+  if (place.rewardEligible || value.contains('공원') || value.contains('park')) {
+    return PixelPlaceKind.park;
+  }
+  if (value.contains('병원') || value.contains('동물') || value.contains('vet')) {
+    return PixelPlaceKind.hospital;
+  }
+  if (value.contains('숙소') ||
+      value.contains('호텔') ||
+      value.contains('펜션') ||
+      value.contains('stay')) {
+    return PixelPlaceKind.stay;
+  }
+  if (value.contains('카페') || value.contains('cafe')) {
+    return PixelPlaceKind.cafe;
+  }
+  if (value.contains('식당') ||
+      value.contains('음식') ||
+      value.contains('restaurant')) {
+    return PixelPlaceKind.restaurant;
+  }
+  return PixelPlaceKind.pet;
+}
+
+class PixelPlaceMarker extends StatelessWidget {
+  final PlaceInfo place;
+  const PixelPlaceMarker({super.key, required this.place});
+
+  @override
+  Widget build(BuildContext context) {
+    final kind = pixelPlaceKind(place);
+    final (icon, color) = switch (kind) {
+      PixelPlaceKind.park => (Icons.park, const Color(0xFF28734E)),
+      PixelPlaceKind.cafe => (Icons.local_cafe, const Color(0xFFB8794E)),
+      PixelPlaceKind.hospital => (
+        Icons.local_hospital,
+        const Color(0xFFD65F5F),
+      ),
+      PixelPlaceKind.stay => (Icons.bed, const Color(0xFF6B6FA9)),
+      PixelPlaceKind.restaurant => (
+        Icons.restaurant,
+        const Color(0xFFD8893B),
+      ),
+      PixelPlaceKind.pet => (Icons.pets, forest),
+    };
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          constraints: const BoxConstraints(maxWidth: 122),
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF8E9),
+            border: Border.all(color: color, width: 2),
+            borderRadius: BorderRadius.circular(4),
+            boxShadow: [
+              BoxShadow(color: color.withValues(alpha: .32), offset: const Offset(3, 3)),
+            ],
+          ),
+          child: Text(
+            place.rewardEligible ? '${place.name} · +30P' : place.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        Container(
+          width: 31,
+          height: 31,
+          decoration: BoxDecoration(
+            color: color,
+            border: Border.all(color: const Color(0xFFFFF8E9), width: 3),
+            borderRadius: BorderRadius.circular(5),
+            boxShadow: const [
+              BoxShadow(color: Color(0x44000000), offset: Offset(2, 3)),
+            ],
+          ),
+          child: Icon(icon, color: Colors.white, size: 18),
+        ),
+      ],
+    );
+  }
+}
+
+class MungcationMapBadge extends StatelessWidget {
+  const MungcationMapBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: const Color(0xEFFFF8E9),
+      border: Border.all(color: forest, width: 2),
+      borderRadius: BorderRadius.circular(6),
+      boxShadow: const [
+        BoxShadow(color: Color(0x44205C40), offset: Offset(3, 3)),
+      ],
+    ),
+    child: const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.pets, size: 16, color: forest),
+          SizedBox(width: 5),
+          Text(
+            '멍케이션 지도',
+            style: TextStyle(
+              color: forest,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    ),
   );
 }
 

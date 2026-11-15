@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'services/android_map_service.dart';
 import 'services/android_map_configuration.dart';
 import 'features/data_tools_page.dart';
@@ -49,7 +50,9 @@ class MungcationApp extends StatelessWidget {
       locationSource: locationSource,
       maps:
           maps ??
-          (Platform.isAndroid ? AndroidMapService() : AppleMapService()),
+          (kIsWeb || Platform.isAndroid
+              ? AndroidMapService()
+              : AppleMapService()),
     ),
   );
 }
@@ -82,7 +85,9 @@ class _ShellState extends State<Shell> {
   }
 
   Future<void> initialize() async {
-    if (Platform.isAndroid) await AndroidMapConfiguration.instance.load();
+    if (kIsWeb || Platform.isAndroid) {
+      await AndroidMapConfiguration.instance.load();
+    }
     await controller.load();
     if (mounted) walk.recover();
   }

@@ -108,7 +108,7 @@ class _WalkMapState extends State<WalkMap> {
         color: Color(0xFFE8F0E7),
         child: Center(child: Icon(Icons.map_outlined)),
       );
-    if (!kIsWeb && Platform.isAndroid)
+    if (kIsWeb || Platform.isAndroid)
       return AndroidWalkMap(
         samples: widget.samples,
         route: widget.route,

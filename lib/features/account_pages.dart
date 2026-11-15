@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'android_map_settings_page.dart';
 import 'data_tools_page.dart';
 import 'package:flutter/material.dart';
@@ -318,7 +319,7 @@ class ProfilePage extends StatelessWidget {
                   },
           ),
         ),
-        if (Platform.isAndroid)
+        if (!kIsWeb && Platform.isAndroid)
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.map_outlined),
@@ -418,7 +419,7 @@ class _PetEditorState extends State<PetEditor> {
     photo = p?.photo ?? '';
     pixelPhoto = p?.pixelPhoto ?? '';
     character = p?.character ?? 'original';
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       working = true;
       recoverPhoto();
     }

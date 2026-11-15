@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
@@ -23,7 +24,7 @@ class DeviceLocation implements LocationSource {
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.unableToDetermine)
       throw const LocationFailure('위치 권한이 필요해요. 허용 후 다시 시도해 주세요.');
-    if (background && Platform.isAndroid) {
+    if (background && !kIsWeb && Platform.isAndroid) {
       final enabled = await const MethodChannel(
         'mungcation/android',
       ).invokeMethod<bool>('requestNotifications');
@@ -51,7 +52,12 @@ class DeviceLocation implements LocationSource {
   static LocationSettings settingsFor({
     required bool android,
     required bool background,
-  }) => android
+  }) => kIsWeb
+      ? const LocationSettings(
+          accuracy: LocationAccuracy.best,
+          distanceFilter: 5,
+        )
+      : android
       ? AndroidSettings(
           accuracy: LocationAccuracy.best,
           distanceFilter: 5,
@@ -79,7 +85,7 @@ class DeviceLocation implements LocationSource {
   Stream<GeoSample> watch({required bool background}) =>
       Geolocator.getPositionStream(
         locationSettings: settingsFor(
-          android: Platform.isAndroid,
+          android: !kIsWeb && Platform.isAndroid,
           background: background,
         ),
       ).map(convert);

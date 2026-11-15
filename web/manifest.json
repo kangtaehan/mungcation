@@ -1,10 +1,18 @@
 {
-  "name": "멍케이션 미리보기",
+  "name": "멍케이션",
   "short_name": "멍케이션",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#FAF8F4",
   "theme_color": "#205C40",
-  "description": "Flutter로 개발 중인 멍케이션 앱의 브라우저 미리보기",
-  "orientation": "portrait-primary"
+  "description": "반려견과 함께하는 산책·여행·공간 꾸미기 앱",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }

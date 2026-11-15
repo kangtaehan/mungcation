@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'services/android_map_service.dart';
 import 'services/android_map_configuration.dart';
-import 'features/data_tools_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/ui.dart';
@@ -125,19 +124,6 @@ class _ShellState extends State<Shell> {
                     TextButton(
                       onPressed: initialize,
                       child: const Text('다시 시도'),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => DataToolsPage(
-                            controller: controller,
-                            session: walk,
-                          ),
-                        ),
-                      ),
-                      icon: const Icon(Icons.restore),
-                      label: const Text('백업에서 복원'),
                     ),
                   ],
                 ),

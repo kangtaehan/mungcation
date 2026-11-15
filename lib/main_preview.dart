@@ -283,13 +283,6 @@ class _PreviewShellState extends State<PreviewShell> {
         onTap: () => previewOnly('GPX 파일 저장'),
       ),
     ),
-    Card(
-      child: ListTile(
-        leading: const Icon(Icons.cloud_upload_outlined),
-        title: const Text('백업과 복원'),
-        onTap: () => previewOnly('iOS 파일 공유와 복원'),
-      ),
-    ),
     const Padding(
       padding: EdgeInsets.only(top: 16),
       child: Text(

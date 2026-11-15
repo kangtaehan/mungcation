@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'android_map_settings_page.dart';
-import 'data_tools_page.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/ui.dart';
@@ -334,21 +333,6 @@ class ProfilePage extends StatelessWidget {
           ),
         const Divider(),
         HistorySection(controller: controller, session: session),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.inventory_2_outlined),
-          title: const Text('백업과 복원'),
-          subtitle: const Text('사진·산책·즐겨찾기·꾸미기 보관'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute<void>(
-              builder: (_) =>
-                  DataToolsPage(controller: controller, session: session),
-            ),
-          ),
-        ),
-        const Divider(),
         ExpansionTile(
           tilePadding: EdgeInsets.zero,
           title: Text('포인트 지갑 · ${d.coins} P'),
@@ -372,18 +356,6 @@ class ProfilePage extends StatelessWidget {
           child: const Text('오픈소스 라이선스'),
         ),
         const SizedBox(height: 12),
-        ExpansionTile(
-          tilePadding: EdgeInsets.zero,
-          title: const Text('데이터·서비스 안내'),
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: Text(
-                '프로필·사진·산책 경로는 기기에 저장돼요. 장소 검색과 경로 요청 시 검색어·현재 위치·목적지를 iOS에서는 Apple 지도, Android에서는 설정한 지도·검색·도보 경로 제공자로 전송해요. Android 지도 표시에는 OpenStreetMap 타일을 사용해요. 사진 픽셀 필터는 기기에서 처리하며 AI나 외부 서버로 사진을 보내지 않아요.\n\n지도 검색으로 동반 조건이나 인도 안전성을 확인할 수는 없어요. 실제 매장과 주변 보행 환경을 직접 확인해 주세요. 앱 포인트는 기기 내 보상이며 서버 기반 부정 이용 검증은 제공하지 않아요.\n\n앱 삭제 시 로컬 데이터가 사라질 수 있어요. 계정 동기화 및 클라우드 백업은 연결되어 있지 않아요.',
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }

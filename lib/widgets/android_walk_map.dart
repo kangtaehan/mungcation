@@ -58,6 +58,7 @@ List<GeoSample> spacedRoutePaws(
 class AndroidWalkMap extends StatefulWidget {
   final List<GeoSample> samples, route;
   final List<PlaceInfo> places;
+  final Map<String, String> placeLabels;
   final GeoSample? current;
   final ValueChanged<String>? onPlace;
   final int centerRequest;
@@ -70,6 +71,7 @@ class AndroidWalkMap extends StatefulWidget {
     this.samples = const [],
     this.route = const [],
     this.places = const [],
+    this.placeLabels = const {},
     this.current,
     this.onPlace,
     this.centerRequest = 0,
@@ -297,14 +299,17 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                     Marker(
                       point: point(place.location),
                       width: 126,
-                      height: 68,
+                      height: 82,
                       child: GestureDetector(
                         onTap: () => widget.onPlace?.call(place.id),
                         child: Semantics(
                           label:
                               '${place.name}, ${place.rewardEligible ? '공원 방문 최대 30포인트' : '장소 상세'}',
                           button: true,
-                          child: PixelPlaceMarker(place: place),
+                          child: PixelPlaceMarker(
+                            place: place,
+                            subtitle: widget.placeLabels[place.id],
+                          ),
                         ),
                       ),
                     ),
@@ -466,7 +471,8 @@ PixelPlaceKind pixelPlaceKind(PlaceInfo place) {
 
 class PixelPlaceMarker extends StatelessWidget {
   final PlaceInfo place;
-  const PixelPlaceMarker({super.key, required this.place});
+  final String? subtitle;
+  const PixelPlaceMarker({super.key, required this.place, this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -499,15 +505,31 @@ class PixelPlaceMarker extends StatelessWidget {
               ),
             ],
           ),
-          child: Text(
-            place.rewardEligible ? '${place.name} · +30P' : place.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11,
-              color: color,
-              fontWeight: FontWeight.w900,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                place.rewardEligible ? '${place.name} · +30P' : place.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: color,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              if (subtitle != null)
+                Text(
+                  subtitle!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: Color(0xFF5F625E),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+            ],
           ),
         ),
         Container(

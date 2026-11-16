@@ -8,6 +8,7 @@ import '../models/walk_data.dart';
 class WalkMap extends StatefulWidget {
   final List<GeoSample> samples, route;
   final List<PlaceInfo> places;
+  final Map<String, String> placeLabels;
   final GeoSample? current;
   final ValueChanged<String>? onPlace;
   final int centerRequest;
@@ -18,6 +19,7 @@ class WalkMap extends StatefulWidget {
     this.samples = const [],
     this.route = const [],
     this.places = const [],
+    this.placeLabels = const {},
     this.current,
     this.onPlace,
     this.centerRequest = 0,
@@ -57,7 +59,15 @@ class _WalkMapState extends State<WalkMap> {
       'footprints': footprints.length > 400
           ? footprints.sublist(footprints.length - 400)
           : footprints,
-      'places': widget.places.map((e) => e.toMap()).toList(),
+      'places': widget.places
+          .map(
+            (place) => {
+              ...place.toMap(),
+              if (widget.placeLabels[place.id] case final label?)
+                'subtitle': label,
+            },
+          )
+          .toList(),
       'current': widget.current?.toJson(),
       'center': center,
       'fit': widget.fit || fit,
@@ -77,6 +87,7 @@ class _WalkMapState extends State<WalkMap> {
         newPlaces ||
         old.route.isNotEmpty != widget.route.isNotEmpty ||
         old.places.isNotEmpty != widget.places.isNotEmpty ||
+        old.placeLabels != widget.placeLabels ||
         old.centerRequest != widget.centerRequest) {
       send(
         center: old.centerRequest != widget.centerRequest,
@@ -116,6 +127,7 @@ class _WalkMapState extends State<WalkMap> {
         samples: widget.samples,
         route: widget.route,
         places: widget.places,
+        placeLabels: widget.placeLabels,
         current: widget.current,
         onPlace: widget.onPlace,
         centerRequest: widget.centerRequest,

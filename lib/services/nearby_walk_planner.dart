@@ -31,8 +31,18 @@ NearbyPlaceSelection selectNearbyWalkPlaces(
   GeoSample current,
   Iterable<PlaceInfo> candidates,
   String dogSize,
+) => selectNearbyWalkPlacesForMinutes(
+  current,
+  candidates,
+  nearbyTargetMinutes(dogSize),
+);
+
+NearbyPlaceSelection selectNearbyWalkPlacesForMinutes(
+  GeoSample current,
+  Iterable<PlaceInfo> candidates,
+  int maximumMinutes,
 ) {
-  final target = nearbyTargetMinutes(dogSize);
+  final target = maximumMinutes.clamp(5, 180);
   final ranked =
       candidates
           .where((place) => place.location.valid)

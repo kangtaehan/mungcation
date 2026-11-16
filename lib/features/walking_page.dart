@@ -30,6 +30,7 @@ class WalkingPage extends StatefulWidget {
 class WalkingPageState extends State<WalkingPage> {
   final query = TextEditingController();
   List<PlaceInfo> places = [];
+  List<PlaceInfo> nearbyCandidates = [];
   List<WalkingRoute> routes = [];
   int selectedRoute = 0, centerRequest = 0, _request = 0;
   bool loading = false, finishing = false;
@@ -37,6 +38,35 @@ class WalkingPageState extends State<WalkingPage> {
   String? error;
   String? nearbySummary;
   PlaceInfo? destination;
+  GeoSample? nearbyCenter;
+  late int nearbyMinutes;
+  @override
+  void initState() {
+    super.initState();
+    nearbyMinutes = nearbyTargetMinutes(
+      widget.controller.data.pet?.size ?? '소형견',
+    );
+  }
+
+  void applyNearbyMinutes(int minutes) {
+    final center = nearbyCenter;
+    if (center == null) return;
+    final selection = selectNearbyWalkPlacesForMinutes(
+      center,
+      nearbyCandidates,
+      minutes,
+    );
+    setState(() {
+      nearbyMinutes = minutes;
+      places = selection.places;
+      nearbySummary = selection.usedFallback
+          ? '왕복 $minutes분 이내 장소가 없어 가장 가까운 후보를 보여드려요.'
+          : '예상 왕복 $minutes분 이내 ${places.length}곳을 가까운 순서로 보여드려요.';
+      centerRequest++;
+    });
+    widget.session.places = places;
+  }
+
   @override
   void dispose() {
     query.dispose();
@@ -90,6 +120,9 @@ class WalkingPageState extends State<WalkingPage> {
           dogSize,
         );
         setState(() {
+          nearbyCandidates = unique.values.toList();
+          nearbyCenter = center;
+          nearbyMinutes = selection.targetMinutes;
           places = selection.places;
           discoveredNearby = true;
           centerRequest++;
@@ -123,6 +156,8 @@ class WalkingPageState extends State<WalkingPage> {
         setState(() {
           places = found;
           nearbySummary = null;
+          nearbyCandidates = [];
+          nearbyCenter = null;
         });
         widget.session.places = found;
       }
@@ -291,6 +326,23 @@ class WalkingPageState extends State<WalkingPage> {
                 style: const TextStyle(fontSize: 12, color: Colors.black54),
               ),
             ),
+          if (discoveredNearby && nearbyCandidates.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                spacing: 8,
+                children: [
+                  for (final minutes in const [30, 45, 60])
+                    ChoiceChip(
+                      label: Text('$minutes분 이내'),
+                      selected: nearbyMinutes == minutes,
+                      onSelected: loading
+                          ? null
+                          : (_) => applyNearbyMinutes(minutes),
+                    ),
+                ],
+              ),
+            ),
           const SizedBox(height: 12),
           SizedBox(
             height: 360,
@@ -302,6 +354,12 @@ class WalkingPageState extends State<WalkingPage> {
                 current: walk.current,
                 route: routes.isEmpty ? [] : routes[selectedRoute].samples,
                 places: places,
+                placeLabels: {
+                  if (walk.current case final current?)
+                    for (final place in places)
+                      place.id:
+                          '왕복 약 ${estimatedRoundTripMinutes(current, place).ceil()}분',
+                },
                 centerRequest: centerRequest,
                 routeColor: routes.isEmpty
                     ? const Color(0xFF28734E)
@@ -389,7 +447,11 @@ class WalkingPageState extends State<WalkingPage> {
                             style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
                           Text(
-                            '${(routes[selectedRoute].meters / 1000).toStringAsFixed(2)} km · 약 ${(routes[selectedRoute].seconds / 60).ceil()}분',
+                            '편도 ${(routes[selectedRoute].meters / 1000).toStringAsFixed(2)} km · 약 ${(routes[selectedRoute].seconds / 60).ceil()}분',
+                          ),
+                          Text(
+                            '예상 왕복 ${(routes[selectedRoute].meters * 2 / 1000).toStringAsFixed(2)} km · 약 ${(routes[selectedRoute].seconds * 2 / 60).ceil()}분',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 5),
                           Text(

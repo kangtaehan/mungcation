@@ -45,4 +45,27 @@ void main() {
     expect(selection.usedFallback, true);
     expect(selection.places.single.id, 'too-far');
   });
+
+  test('map time filters can override the profile default', () {
+    final candidates = [
+      place('30-minute', 37.0077),
+      place('60-minute', 37.0154),
+    ];
+    expect(
+      selectNearbyWalkPlacesForMinutes(
+        current,
+        candidates,
+        30,
+      ).places.map((item) => item.id),
+      ['30-minute'],
+    );
+    expect(
+      selectNearbyWalkPlacesForMinutes(
+        current,
+        candidates,
+        60,
+      ).places.map((item) => item.id),
+      ['30-minute', '60-minute'],
+    );
+  });
 }

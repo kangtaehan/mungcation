@@ -8,6 +8,7 @@ import '../services/map_service.dart';
 import '../services/nearby_walk_planner.dart';
 import '../services/route_safety.dart';
 import '../services/walk_session.dart';
+import '../services/walk_navigation.dart';
 import '../widgets/walk_map.dart';
 import 'history_page.dart';
 
@@ -32,6 +33,7 @@ class WalkingPageState extends State<WalkingPage> {
   List<PlaceInfo> places = [];
   List<PlaceInfo> nearbyCandidates = [];
   List<WalkingRoute> routes = [];
+  List<WalkingRoute> returnRoutes = [];
   int selectedRoute = 0, centerRequest = 0, _request = 0;
   bool loading = false, finishing = false;
   bool discoveredNearby = false;
@@ -40,12 +42,45 @@ class WalkingPageState extends State<WalkingPage> {
   PlaceInfo? destination;
   GeoSample? nearbyCenter;
   late int nearbyMinutes;
+  DateTime? lastReroute;
   @override
   void initState() {
     super.initState();
     nearbyMinutes = nearbyTargetMinutes(
       widget.controller.data.pet?.size ?? '소형견',
     );
+    widget.session.addListener(handleNavigationUpdate);
+  }
+
+  WalkingRoute? get plannedRoute {
+    if (routes.isEmpty) return null;
+    return roundTripRoute(
+      routes[selectedRoute],
+      returning:
+          returnRoutes.elementAtOrNull(selectedRoute) ??
+          returnRoutes.firstOrNull,
+    );
+  }
+
+  void handleNavigationUpdate() {
+    final route = plannedRoute, current = widget.session.current;
+    if (route == null ||
+        current == null ||
+        destination == null ||
+        widget.session.status != WalkStatus.recording ||
+        loading) {
+      return;
+    }
+    final guidance = navigationGuidance(route, current);
+    final now = DateTime.now();
+    if (guidance.offRoute &&
+        (lastReroute == null ||
+            now.difference(lastReroute!) > const Duration(seconds: 45))) {
+      lastReroute = now;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) routeTo(destination!, closeSheet: false);
+      });
+    }
   }
 
   void applyNearbyMinutes(int minutes) {
@@ -69,6 +104,7 @@ class WalkingPageState extends State<WalkingPage> {
 
   @override
   void dispose() {
+    widget.session.removeListener(handleNavigationUpdate);
     query.dispose();
     super.dispose();
   }
@@ -195,16 +231,35 @@ class WalkingPageState extends State<WalkingPage> {
       error = null;
       destination = place;
       routes = [];
+      returnRoutes = [];
       selectedRoute = 0;
     });
     try {
-      final found = await widget.maps.directions(
-        widget.session.current!,
-        place,
-      );
+      final start = widget.session.current!;
+      final found = await widget.maps.directions(start, place);
+      var returning = <WalkingRoute>[];
+      if (found.isNotEmpty) {
+        try {
+          returning = await widget.maps.directions(
+            place.location,
+            PlaceInfo(
+              id: 'walk-start',
+              name: '출발 위치',
+              address: '',
+              category: 'start',
+              location: start,
+              fetchedAt: DateTime.now(),
+              source: '기기 위치',
+            ),
+          );
+        } catch (_) {
+          returning = [];
+        }
+      }
       if (mounted && request == _request)
         setState(() {
           routes = found;
+          returnRoutes = returning;
           if (found.isEmpty) error = '이 지역의 도보 경로를 제공하지 못해요. 다른 목적지를 선택해 주세요.';
         });
     } catch (_) {
@@ -228,6 +283,88 @@ class WalkingPageState extends State<WalkingPage> {
         maps: widget.maps,
         controller: widget.controller,
         onRoute: () => routeTo(place),
+      ),
+    );
+  }
+
+  Widget placeStrip(String title, List<PlaceInfo> items, {IconData? icon}) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (icon != null) Icon(icon, size: 20, color: forest),
+              if (icon != null) const SizedBox(width: 7),
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 112,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: items.take(8).length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final place = items[index];
+                final minutes = widget.session.current == null
+                    ? null
+                    : estimatedRoundTripMinutes(
+                        widget.session.current!,
+                        place,
+                      ).ceil();
+                return SizedBox(
+                  width: 170,
+                  child: Card(
+                    elevation: 0,
+                    color: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      side: const BorderSide(color: Color(0xFFE4E7E3)),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () => showPlace(place),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              place.rewardEligible ? Icons.park : Icons.pets,
+                              color: forest,
+                            ),
+                            const Spacer(),
+                            Text(
+                              place.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              minutes == null
+                                  ? place.category
+                                  : '예상 왕복 $minutes분',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -276,7 +413,21 @@ class WalkingPageState extends State<WalkingPage> {
               walk.status == WalkStatus.locating ||
               walk.status == WalkStatus.saving ||
               finishing,
-          safetyReports = routes.map(assessWalkingRoute).toList();
+          safetyReports = routes.map(assessWalkingRoute).toList(),
+          planned = plannedRoute,
+          guidance = planned == null || walk.current == null
+              ? null
+              : navigationGuidance(planned, walk.current!),
+          pointPlaces = places.where((place) => place.rewardEligible).toList(),
+          recommendedPlaces = places
+              .where((place) => !place.rewardEligible)
+              .toList(),
+          recentVisits = widget.controller.data.realWalks.reversed
+              .expand((record) => record.visits.reversed)
+              .map((visit) => visit.name)
+              .toSet()
+              .take(8)
+              .toList();
       return ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -352,7 +503,7 @@ class WalkingPageState extends State<WalkingPage> {
                 enabled: widget.visible,
                 samples: walk.samples,
                 current: walk.current,
-                route: routes.isEmpty ? [] : routes[selectedRoute].samples,
+                route: planned?.samples ?? const [],
                 places: places,
                 placeLabels: {
                   if (walk.current case final current?)
@@ -371,6 +522,51 @@ class WalkingPageState extends State<WalkingPage> {
               ),
             ),
           ),
+          if (planned != null && guidance != null)
+            Card(
+              margin: const EdgeInsets.only(top: 10),
+              elevation: 0,
+              color: guidance.offRoute
+                  ? const Color(0xFFFFE7DF)
+                  : const Color(0xFFE7F3EA),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: guidance.offRoute
+                          ? Colors.deepOrange
+                          : forest,
+                      foregroundColor: Colors.white,
+                      child: const Icon(Icons.pets),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            guidance.offRoute
+                                ? '경로를 벗어나 다시 찾고 있어요'
+                                : guidance.instruction,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          Text(
+                            '남은 ${(guidance.remainingMeters / 1000).toStringAsFixed(2)}km · 약 ${(guidance.remainingSeconds / 60).ceil()}분',
+                            style: const TextStyle(color: Colors.black54),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
@@ -422,6 +618,7 @@ class WalkingPageState extends State<WalkingPage> {
                   setState(() {
                     destination = null;
                     routes = [];
+                    returnRoutes = [];
                     loading = false;
                   });
                 },
@@ -450,8 +647,17 @@ class WalkingPageState extends State<WalkingPage> {
                             '편도 ${(routes[selectedRoute].meters / 1000).toStringAsFixed(2)} km · 약 ${(routes[selectedRoute].seconds / 60).ceil()}분',
                           ),
                           Text(
-                            '예상 왕복 ${(routes[selectedRoute].meters * 2 / 1000).toStringAsFixed(2)} km · 약 ${(routes[selectedRoute].seconds * 2 / 60).ceil()}분',
+                            '왕복 ${(planned!.meters / 1000).toStringAsFixed(2)} km · 약 ${(planned.seconds / 60).ceil()}분',
                             style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            returnRoutes.isEmpty
+                                ? '같은 길로 돌아오는 코스'
+                                : '다른 귀환 경로를 포함한 코스',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
                           ),
                           const SizedBox(height: 5),
                           Text(
@@ -535,6 +741,41 @@ class WalkingPageState extends State<WalkingPage> {
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ),
+          placeStrip(
+            '${widget.controller.data.pet?.name ?? '강아지'}와 함께하는 추천 산책',
+            recommendedPlaces,
+            icon: Icons.route_outlined,
+          ),
+          placeStrip(
+            '포인트를 받을 수 있는 산책 장소',
+            pointPlaces,
+            icon: Icons.stars_outlined,
+          ),
+          if (recentVisits.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '최근 방문한 장소',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final name in recentVisits)
+                        Chip(
+                          avatar: const Icon(Icons.history, size: 17),
+                          label: Text(name),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           if (walk.hasWalk)
             Card(
               color: beige,

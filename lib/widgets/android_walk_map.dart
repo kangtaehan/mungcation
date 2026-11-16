@@ -210,26 +210,20 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
               },
             ),
             children: [
-              ColorFiltered(
-                colorFilter: const ColorFilter.mode(
-                  Color(0x24FFD9A8),
-                  BlendMode.softLight,
-                ),
-                child: TileLayer(
-                  key: ValueKey('${config.tiles}-$retry'),
-                  urlTemplate: config.tiles,
-                  userAgentPackageName: 'com.mungcation.mungcation',
-                  maxNativeZoom: 19,
-                  tileProvider: widget.tileProvider,
-                  keepBuffer: 0,
-                  panBuffer: 0,
-                  errorTileCallback: (tile, error, stack) {
-                    if (!tileError)
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) setState(() => tileError = true);
-                      });
-                  },
-                ),
+              TileLayer(
+                key: ValueKey('${config.tiles}-$retry'),
+                urlTemplate: config.tiles,
+                userAgentPackageName: 'com.mungcation.mungcation',
+                maxNativeZoom: 19,
+                tileProvider: widget.tileProvider,
+                keepBuffer: 0,
+                panBuffer: 0,
+                errorTileCallback: (tile, error, stack) {
+                  if (!tileError)
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) setState(() => tileError = true);
+                    });
+                },
               ),
               PolylineLayer(
                 polylines: [
@@ -351,11 +345,6 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                 ],
               ),
             ],
-          ),
-          const Positioned.fill(
-            child: IgnorePointer(
-              child: CustomPaint(painter: PixelMapTexturePainter()),
-            ),
           ),
           const Positioned(
             top: 12,
@@ -495,13 +484,14 @@ class PixelPlaceMarker extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 122),
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF8E9),
-            border: Border.all(color: color, width: 2),
-            borderRadius: BorderRadius.circular(4),
+            color: Colors.white,
+            border: Border.all(color: color.withValues(alpha: .35)),
+            borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: color.withValues(alpha: .32),
-                offset: const Offset(3, 3),
+                color: Colors.black.withValues(alpha: .12),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -537,10 +527,14 @@ class PixelPlaceMarker extends StatelessWidget {
           height: 31,
           decoration: BoxDecoration(
             color: color,
-            border: Border.all(color: const Color(0xFFFFF8E9), width: 3),
-            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: Colors.white, width: 3),
+            shape: BoxShape.circle,
             boxShadow: const [
-              BoxShadow(color: Color(0x44000000), offset: Offset(2, 3)),
+              BoxShadow(
+                color: Color(0x33000000),
+                blurRadius: 6,
+                offset: Offset(0, 3),
+              ),
             ],
           ),
           child: Icon(icon, color: Colors.white, size: 18),
@@ -556,11 +550,14 @@ class MungcationMapBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
-      color: const Color(0xEFFFF8E9),
-      border: Border.all(color: forest, width: 2),
-      borderRadius: BorderRadius.circular(6),
+      color: const Color(0xF2FFFFFF),
+      borderRadius: BorderRadius.circular(20),
       boxShadow: const [
-        BoxShadow(color: Color(0x44205C40), offset: Offset(3, 3)),
+        BoxShadow(
+          color: Color(0x22000000),
+          blurRadius: 10,
+          offset: Offset(0, 3),
+        ),
       ],
     ),
     child: const Padding(
@@ -622,13 +619,10 @@ class PixelMapButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: const Color(0xEFFFF8E9),
-    shape: RoundedRectangleBorder(
-      side: const BorderSide(color: forest, width: 2),
-      borderRadius: BorderRadius.circular(5),
-    ),
-    elevation: 3,
-    shadowColor: const Color(0x66205C40),
+    color: const Color(0xF5FFFFFF),
+    shape: const CircleBorder(),
+    elevation: 2,
+    shadowColor: const Color(0x33000000),
     child: IconButton(
       tooltip: tooltip,
       onPressed: onPressed,

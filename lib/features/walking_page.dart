@@ -5,6 +5,7 @@ import '../core/ui.dart';
 import '../models/walk_data.dart';
 import '../services/app_controller.dart';
 import '../services/map_service.dart';
+import '../services/nearby_walk_planner.dart';
 import '../services/route_safety.dart';
 import '../services/walk_session.dart';
 import '../widgets/walk_map.dart';
@@ -34,6 +35,7 @@ class WalkingPageState extends State<WalkingPage> {
   bool loading = false, finishing = false;
   bool discoveredNearby = false;
   String? error;
+  String? nearbySummary;
   PlaceInfo? destination;
   @override
   void dispose() {
@@ -81,10 +83,20 @@ class WalkingPageState extends State<WalkingPage> {
         unique.putIfAbsent(place.id, () => place);
       }
       if (mounted) {
+        final dogSize = widget.controller.data.pet?.size ?? '소형견';
+        final selection = selectNearbyWalkPlaces(
+          center,
+          unique.values,
+          dogSize,
+        );
         setState(() {
-          places = unique.values.take(30).toList();
+          places = selection.places;
           discoveredNearby = true;
           centerRequest++;
+          nearbySummary = selection.usedFallback
+              ? '$dogSize 권장 왕복 ${selection.targetMinutes}분에 가까운 장소가 적어 가장 비슷한 후보를 보여드려요.'
+              : '$dogSize 기준 예상 왕복 약 ${selection.targetMinutes}분인 장소를 보여드려요.';
+          if (places.isEmpty) error = '권장 산책 시간에 맞는 주변 장소를 찾지 못했어요.';
         });
         widget.session.places = places;
       }
@@ -108,7 +120,10 @@ class WalkingPageState extends State<WalkingPage> {
         widget.session.current,
       );
       if (mounted && request == _request) {
-        setState(() => places = found);
+        setState(() {
+          places = found;
+          nearbySummary = null;
+        });
         widget.session.places = found;
       }
     } catch (e) {
@@ -263,9 +278,19 @@ class WalkingPageState extends State<WalkingPage> {
                       discoverNearby();
                     },
               icon: const Icon(Icons.near_me_outlined),
-              label: const Text('내 주변 공원 · 애견 장소 보기'),
+              label: Text(
+                '내 주변 ${widget.controller.data.pet?.size ?? '소형견'} 맞춤 장소 보기',
+              ),
             ),
           ),
+          if (nearbySummary != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                nearbySummary!,
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ),
           const SizedBox(height: 12),
           SizedBox(
             height: 360,

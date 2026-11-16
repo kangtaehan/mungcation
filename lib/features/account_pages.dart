@@ -616,7 +616,7 @@ class _PetEditorState extends State<PetEditor> {
         if (photo.isNotEmpty)
           OutlinedButton(
             onPressed: working ? null : pixelate,
-            child: const Text('기기에서 픽셀 스타일로 변환'),
+            child: const Text('내 강아지 픽셀 사진 만들기'),
           ),
         if (pixelPhoto.isNotEmpty)
           Padding(
@@ -627,7 +627,7 @@ class _PetEditorState extends State<PetEditor> {
             ),
           ),
         const Text(
-          '픽셀 필터는 사진의 해상도를 줄이는 기기 내 효과예요. AI 캐릭터 생성이 아니며, 변환한 사진은 방의 액자에 표시돼요.',
+          '사진 중앙을 정사각형으로 맞춘 뒤 색상과 윤곽을 픽셀 스타일로 바꿔요. 변환은 기기 안에서만 처리되며 결과는 방의 액자에 표시돼요.',
           style: TextStyle(color: Colors.black54),
         ),
         const SizedBox(height: 24),

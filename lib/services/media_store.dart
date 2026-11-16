@@ -86,26 +86,132 @@ class MediaStore {
 
   Future<String> pixelate(String original) async {
     final bytes = await (await resolve(original)).readAsBytes();
-    final codec = await ui.instantiateImageCodec(
-      bytes,
-      targetWidth: 48,
-      targetHeight: 48,
-      allowUpscaling: false,
-    );
+    final codec = await ui.instantiateImageCodec(bytes);
     try {
       final frame = await codec.getNextFrame();
       try {
-        final png = await frame.image.toByteData(
-          format: ui.ImageByteFormat.png,
+        final side = frame.image.width < frame.image.height
+            ? frame.image.width
+            : frame.image.height;
+        final source = ui.Rect.fromLTWH(
+          (frame.image.width - side) / 2,
+          (frame.image.height - side) / 2,
+          side.toDouble(),
+          side.toDouble(),
         );
-        if (png == null) throw StateError('사진 변환 실패');
-        return writePng(png.buffer.asUint8List());
+        final recorder = ui.PictureRecorder();
+        final canvas = ui.Canvas(recorder);
+        canvas.drawImageRect(
+          frame.image,
+          source,
+          const ui.Rect.fromLTWH(0, 0, 40, 40),
+          ui.Paint()..filterQuality = ui.FilterQuality.medium,
+        );
+        final picture = recorder.endRecording();
+        final small = await picture.toImage(40, 40);
+        picture.dispose();
+        try {
+          final rgba = await small.toByteData(
+            format: ui.ImageByteFormat.rawRgba,
+          );
+          if (rgba == null) throw StateError('사진 변환 실패');
+          final styled = pixelArtRgba(rgba.buffer.asUint8List());
+          final buffer = await ui.ImmutableBuffer.fromUint8List(styled);
+          try {
+            final descriptor = ui.ImageDescriptor.raw(
+              buffer,
+              width: 40,
+              height: 40,
+              pixelFormat: ui.PixelFormat.rgba8888,
+            );
+            try {
+              final styledCodec = await descriptor.instantiateCodec();
+              try {
+                final styledFrame = await styledCodec.getNextFrame();
+                try {
+                  final outputRecorder = ui.PictureRecorder();
+                  final outputCanvas = ui.Canvas(outputRecorder);
+                  outputCanvas.drawColor(
+                    const ui.Color(0xFFFFE8C7),
+                    ui.BlendMode.src,
+                  );
+                  outputCanvas.drawImageRect(
+                    styledFrame.image,
+                    const ui.Rect.fromLTWH(0, 0, 40, 40),
+                    const ui.Rect.fromLTWH(0, 0, 320, 320),
+                    ui.Paint()..filterQuality = ui.FilterQuality.none,
+                  );
+                  final outputPicture = outputRecorder.endRecording();
+                  final output = await outputPicture.toImage(320, 320);
+                  outputPicture.dispose();
+                  try {
+                    final png = await output.toByteData(
+                      format: ui.ImageByteFormat.png,
+                    );
+                    if (png == null) throw StateError('사진 변환 실패');
+                    return writePng(png.buffer.asUint8List());
+                  } finally {
+                    output.dispose();
+                  }
+                } finally {
+                  styledFrame.image.dispose();
+                }
+              } finally {
+                styledCodec.dispose();
+              }
+            } finally {
+              descriptor.dispose();
+            }
+          } finally {
+            buffer.dispose();
+          }
+        } finally {
+          small.dispose();
+        }
       } finally {
         frame.image.dispose();
       }
     } finally {
       codec.dispose();
     }
+  }
+
+  /// Adds a small palette and dark pixel edges without sending the photo to a
+  /// server. Input and output use RGBA byte order.
+  static Uint8List pixelArtRgba(Uint8List source, {int width = 40}) {
+    if (source.length % 4 != 0 ||
+        width < 1 ||
+        source.length ~/ 4 % width != 0) {
+      throw const FormatException('RGBA 사진 형식이 아니에요.');
+    }
+    final output = Uint8List.fromList(source);
+    int channel(int value) {
+      final contrasted = ((value - 128) * 1.16 + 128).round().clamp(0, 255);
+      return ((contrasted / 32).round() * 32).clamp(0, 255).toInt();
+    }
+
+    for (var i = 0; i < output.length; i += 4) {
+      output[i] = channel(output[i]);
+      output[i + 1] = channel(output[i + 1]);
+      output[i + 2] = channel(output[i + 2]);
+    }
+    final height = source.length ~/ 4 ~/ width;
+    final shaded = Uint8List.fromList(output);
+    int light(int index) =>
+        (output[index] * 3 + output[index + 1] * 6 + output[index + 2]) ~/ 10;
+    for (var y = 1; y < height - 1; y++) {
+      for (var x = 1; x < width - 1; x++) {
+        final i = (y * width + x) * 4;
+        final right = i + 4, below = i + width * 4;
+        if ((light(i) - light(right)).abs() > 62 ||
+            (light(i) - light(below)).abs() > 62) {
+          shaded[i] = (output[i] * .58).round();
+          shaded[i + 1] = (output[i + 1] * .58).round();
+          shaded[i + 2] = (output[i + 2] * .58).round();
+        }
+      }
+    }
+    return shaded;
   }
 
   Future<String> writePng(Uint8List bytes) async {

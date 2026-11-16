@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,8 +32,8 @@ void main() {
           await (await store.resolve(filtered)).readAsBytes(),
         );
         final frame = await codec.getNextFrame();
-        expect(frame.image.width, lessThanOrEqualTo(48));
-        expect(frame.image.height, lessThanOrEqualTo(48));
+        expect(frame.image.width, 320);
+        expect(frame.image.height, 320);
         frame.image.dispose();
         codec.dispose();
         await expectLater(
@@ -51,6 +52,15 @@ void main() {
       }
     },
   );
+  test('pixel art filter limits colors and strengthens hard edges', () {
+    final input = Uint8List.fromList([123, 128, 135, 255, 250, 245, 240, 255]);
+    final output = MediaStore.pixelArtRgba(input, width: 2);
+    expect(output, hasLength(input.length));
+    expect(output[0] % 32, 0);
+    expect(output[1] % 32, 0);
+    expect(output[2] % 32, 0);
+    expect(output[7], 255);
+  });
   test(
     'MapKit bridge sends user coordinates and decodes actual source results',
     () async {

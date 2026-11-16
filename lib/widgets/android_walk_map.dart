@@ -81,6 +81,7 @@ class AndroidWalkMap extends StatefulWidget {
 }
 
 class _AndroidWalkMapState extends State<AndroidWalkMap> {
+  static const nearbyZoom = 19.0;
   static final koreaMapBounds = LatLngBounds(
     const LatLng(koreaSouth, koreaWest),
     const LatLng(koreaNorth, koreaEast),
@@ -113,7 +114,7 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
   void fit({bool center = false}) {
     if (!ready || !mounted) return;
     if (center && widget.current?.valid == true) {
-      controller.move(point(widget.current!), 16);
+      controller.move(point(widget.current!), nearbyZoom);
       return;
     }
     final points = boundsPoints;
@@ -183,7 +184,11 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
             mapController: controller,
             options: MapOptions(
               initialCenter: start,
-              initialZoom: widget.current == null && points.isEmpty ? 6 : 16,
+              initialZoom: widget.current?.valid == true
+                  ? nearbyZoom
+                  : points.isEmpty
+                  ? 6
+                  : 16,
               minZoom: 6,
               maxZoom: 19,
               cameraConstraint: CameraConstraint.containCenter(

@@ -151,7 +151,7 @@ final class PetMap: NSObject, FlutterPlatformView, MKMapViewDelegate {
     for c in coordinates(args["footprints"]) { let mark = PetAnnotation(); mark.coordinate = c; mark.kind = "paw"; map.addAnnotation(mark) }
     if let current = args["current"] as? [String: Any], let lat = current["lat"] as? Double, let lon = current["lon"] as? Double {
       let mark = PetAnnotation();mark.coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon);mark.kind = "current";mark.title = "마지막으로 확인한 위치";map.addAnnotation(mark)
-      if firstUpdate || args["center"] as? Bool == true {map.setRegion(MKCoordinateRegion(center: mark.coordinate, latitudinalMeters: 1200, longitudinalMeters: 1200), animated: !firstUpdate);firstUpdate = false}
+      if firstUpdate || args["center"] as? Bool == true {map.setRegion(MKCoordinateRegion(center: mark.coordinate, latitudinalMeters: 120, longitudinalMeters: 120), animated: !firstUpdate);firstUpdate = false}
     }
     if args["fit"] as? Bool == true {
       let rect = map.overlays.reduce(MKMapRect.null) { $0.union($1.boundingMapRect) }

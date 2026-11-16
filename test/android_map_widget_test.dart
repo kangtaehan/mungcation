@@ -61,7 +61,7 @@ void main() {
         name: '공원',
         address: '',
         category: 'park',
-        location: GeoSample(37.5005, 127.0006, 0, now),
+        location: GeoSample(37.5001, 127.0001, 0, now),
         fetchedAt: now,
         source: 'OpenStreetMap',
       );
@@ -89,6 +89,7 @@ void main() {
           .options;
       expect(options.minZoom, 6);
       expect(options.maxZoom, 19);
+      expect(options.initialZoom, 19);
       expect(options.cameraConstraint, isA<ContainCameraCenter>());
       expect(find.byTooltip('확대'), findsOneWidget);
       expect(find.byTooltip('축소'), findsOneWidget);

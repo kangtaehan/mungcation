@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../core/korea.dart';
 import '../core/ui.dart';
 import '../models/walk_data.dart';
 import '../services/android_map_configuration.dart';
@@ -80,6 +81,10 @@ class AndroidWalkMap extends StatefulWidget {
 }
 
 class _AndroidWalkMapState extends State<AndroidWalkMap> {
+  static final koreaMapBounds = LatLngBounds(
+    const LatLng(koreaSouth, koreaWest),
+    const LatLng(koreaNorth, koreaEast),
+  );
   final controller = MapController();
   late final AndroidMapConfiguration configuration =
       widget.configuration ?? AndroidMapConfiguration.instance;
@@ -179,6 +184,11 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
             options: MapOptions(
               initialCenter: start,
               initialZoom: widget.current == null && points.isEmpty ? 6 : 16,
+              minZoom: 6,
+              maxZoom: 19,
+              cameraConstraint: CameraConstraint.containCenter(
+                bounds: koreaMapBounds,
+              ),
               initialCameraFit: widget.fit && points.length > 1
                   ? CameraFit.bounds(
                       bounds: LatLngBounds.fromPoints(points),

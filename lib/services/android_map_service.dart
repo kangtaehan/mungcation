@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import '../core/korea.dart';
 import '../models/walk_data.dart';
 import 'map_service.dart';
 import 'android_map_configuration.dart';
@@ -101,6 +102,7 @@ class AndroidMapService implements MapService {
       'addressdetails': '1',
       'extratags': '1',
       'accept-language': 'ko',
+      'countrycodes': 'kr',
       'q': category == null
           ? cleaned
           : region.isEmpty
@@ -131,7 +133,10 @@ class AndroidMapService implements MapService {
               lon = double.tryParse('${e['lon']}');
           if (lat == null || lon == null) return null;
           final location = GeoSample(lat, lon, 0, now());
-          if (!location.valid) return null;
+          if (!location.valid ||
+              !isInKorea(location.latitude, location.longitude)) {
+            return null;
+          }
           final tags = Map<String, dynamic>.from(e['extratags'] as Map? ?? {}),
               address = '${e['display_name'] ?? ''}';
           final park = e['class'] == 'leisure' && e['type'] == 'park';
@@ -155,6 +160,10 @@ class AndroidMapService implements MapService {
   Future<List<WalkingRoute>> directions(GeoSample start, PlaceInfo end) async {
     if (!start.valid || !end.location.valid)
       throw const MapServiceFailure('유효한 출발지와 목적지가 필요해요.');
+    if (!isInKorea(start.latitude, start.longitude) ||
+        !isInKorea(end.location.latitude, end.location.longitude)) {
+      throw const MapServiceFailure('국내 산책 경로만 안내할 수 있어요.');
+    }
     configuration.value.validate();
     final base = configuration.value.routing.replaceAll(RegExp(r'/+$'), '');
     final uri =
@@ -191,7 +200,9 @@ class AndroidMapService implements MapService {
           meters < 0 ||
           seconds < 0 ||
           coordinates.length < 2 ||
-          coordinates.any((p) => !p.valid))
+          coordinates.any(
+            (p) => !p.valid || !isInKorea(p.latitude, p.longitude),
+          ))
         continue;
       final instructions = <String>[];
       for (final leg in route['legs'] as List? ?? []) {

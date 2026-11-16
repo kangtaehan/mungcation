@@ -3,6 +3,16 @@ import UIKit
 import MapKit
 import CryptoKit
 
+private let koreaRegion = MKCoordinateRegion(
+  center: CLLocationCoordinate2D(latitude: 35.6, longitude: 128.0),
+  span: MKCoordinateSpan(latitudeDelta: 6.2, longitudeDelta: 8.0)
+)
+
+private func isInKorea(_ coordinate: CLLocationCoordinate2D) -> Bool {
+  (32.5...38.7).contains(coordinate.latitude) &&
+    (124.0...132.0).contains(coordinate.longitude)
+}
+
 final class MungcationMapPlugin: NSObject, FlutterPlugin {
   private var searches: [UUID: MKLocalSearch] = [:]
   private var directions: [UUID: MKDirections] = [:]
@@ -26,19 +36,22 @@ final class MungcationMapPlugin: NSObject, FlutterPlugin {
       let request = MKLocalSearch.Request()
       request.naturalLanguageQuery = query
       request.resultTypes = [.address, .pointOfInterest]
+      request.region = koreaRegion
       if let lat = args["lat"] as? Double, let lon = args["lon"] as? Double {
         let center = CLLocationCoordinate2D(latitude: lat, longitude: lon)
         guard CLLocationCoordinate2DIsValid(center) else {
           result(FlutterError(code: "coordinates", message: "현재 위치가 올바르지 않아요.", details: nil)); return
         }
-        request.region = MKCoordinateRegion(center: center, latitudinalMeters: 5000, longitudinalMeters: 5000)
+        if isInKorea(center) {
+          request.region = MKCoordinateRegion(center: center, latitudinalMeters: 5000, longitudinalMeters: 5000)
+        }
       }
       let token = UUID(), search = MKLocalSearch(request: request)
       searches[token] = search
       search.start { [weak self] response, error in
         self?.searches.removeValue(forKey: token)
         guard let response = response else { result(FlutterError(code: "search", message: error?.localizedDescription ?? "장소를 찾지 못했어요.", details: nil)); return }
-        result(response.mapItems.prefix(30).map { item -> [String: Any] in
+        result(response.mapItems.filter { isInKorea($0.placemark.coordinate) }.prefix(30).map { item -> [String: Any] in
           let c = item.placemark.coordinate
           let identity = String(format: "%.5f,%.5f", c.latitude, c.longitude)
           let identifier = SHA256.hash(data: Data(identity.utf8)).map { String(format: "%02x", $0) }.joined()
@@ -48,6 +61,9 @@ final class MungcationMapPlugin: NSObject, FlutterPlugin {
     case "directions":
       guard let lat = args["lat"] as? Double, let lon = args["lon"] as? Double, let endLat = args["endLat"] as? Double, let endLon = args["endLon"] as? Double, CLLocationCoordinate2DIsValid(CLLocationCoordinate2D(latitude: lat, longitude: lon)), CLLocationCoordinate2DIsValid(CLLocationCoordinate2D(latitude: endLat, longitude: endLon)) else {
         result(FlutterError(code: "coordinates", message: "출발지와 목적지가 필요해요.", details: nil)); return
+      }
+      guard isInKorea(CLLocationCoordinate2D(latitude: lat, longitude: lon)), isInKorea(CLLocationCoordinate2D(latitude: endLat, longitude: endLon)) else {
+        result(FlutterError(code: "coordinates", message: "국내 산책 경로만 안내할 수 있어요.", details: nil)); return
       }
       let request = MKDirections.Request()
       request.source = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)))
@@ -101,6 +117,8 @@ final class PetMap: NSObject, FlutterPlatformView, MKMapViewDelegate {
     map.showsScale = true
     map.isRotateEnabled = true
     map.accessibilityLabel = "산책 지도"
+    map.setCameraBoundary(MKMapView.CameraBoundary(coordinateRegion: koreaRegion), animated: false)
+    map.setCameraZoomRange(MKMapView.CameraZoomRange(minCenterCoordinateDistance: 100, maxCenterCoordinateDistance: 1_500_000), animated: false)
     // Initial viewport only. This is never presented as the user's location.
     map.setRegion(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 36.4, longitude: 127.8), span: MKCoordinateSpan(latitudeDelta: 5, longitudeDelta: 5)), animated: false)
     channel.setMethodCallHandler { [weak self] call, result in

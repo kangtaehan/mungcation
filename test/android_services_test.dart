@@ -40,6 +40,7 @@ void main() {
         expect(request.headers['User-Agent'], contains('Mungcation'));
         expect(request.url.queryParameters['q'], '[park]');
         expect(request.url.queryParameters['bounded'], '1');
+        expect(request.url.queryParameters['countrycodes'], 'kr');
         expect(request.url.queryParameters['viewbox'], isNotEmpty);
         return jsonResponse([
           {
@@ -91,6 +92,49 @@ void main() {
     );
     final places = await service.search('공원 옆 카페', null);
     expect(places.single.rewardEligible, false);
+    service.close();
+  });
+  test('search results and routes stay inside Korea', () async {
+    final service = AndroidMapService(
+      configuration: AndroidMapConfiguration(store: MemoryMapSettings()),
+      client: MockClient(
+        (_) async => jsonResponse([
+          {
+            'osm_type': 'node',
+            'osm_id': 30,
+            'name': '서울 장소',
+            'display_name': '서울',
+            'lat': '37.5',
+            'lon': '127.0',
+          },
+          {
+            'osm_type': 'node',
+            'osm_id': 31,
+            'name': '해외 장소',
+            'display_name': '해외',
+            'lat': '35.6',
+            'lon': '139.7',
+          },
+        ]),
+      ),
+      requestSpacing: Duration.zero,
+    );
+    expect(await service.search('장소', null), hasLength(1));
+    final outside = GeoSample(35.6, 139.7, 5, DateTime.now());
+    await expectLater(
+      service.directions(
+        outside,
+        PlaceInfo(
+          id: 'seoul',
+          name: '서울',
+          address: '',
+          category: 'unknown',
+          location: GeoSample(37.5, 127, 0, DateTime.now()),
+          fetchedAt: DateTime.now(),
+        ),
+      ),
+      throwsA(isA<MapServiceFailure>()),
+    );
     service.close();
   });
   test(

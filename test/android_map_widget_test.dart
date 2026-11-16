@@ -84,6 +84,12 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(FlutterMap), findsOneWidget);
+      final options = tester
+          .widget<FlutterMap>(find.byType(FlutterMap))
+          .options;
+      expect(options.minZoom, 6);
+      expect(options.maxZoom, 19);
+      expect(options.cameraConstraint, isA<ContainCameraCenter>());
       expect(find.byTooltip('확대'), findsOneWidget);
       expect(find.byTooltip('축소'), findsOneWidget);
       expect(find.byTooltip('현재 위치로 이동'), findsOneWidget);

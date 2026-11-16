@@ -62,6 +62,7 @@ class AndroidWalkMap extends StatefulWidget {
   final ValueChanged<String>? onPlace;
   final int centerRequest;
   final bool fit;
+  final Color routeColor;
   final AndroidMapConfiguration? configuration;
   final TileProvider? tileProvider;
   const AndroidWalkMap({
@@ -73,6 +74,7 @@ class AndroidWalkMap extends StatefulWidget {
     this.onPlace,
     this.centerRequest = 0,
     this.fit = false,
+    this.routeColor = const Color(0xFF28734E),
     this.configuration,
     this.tileProvider,
   });
@@ -252,7 +254,7 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                           .where((p) => p.valid)
                           .map(point)
                           .toList(),
-                      color: const Color(0xFF28734E),
+                      color: widget.routeColor,
                       strokeWidth: 5,
                       pattern: StrokePattern.dashed(segments: [10, 4]),
                     ),

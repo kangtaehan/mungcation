@@ -12,6 +12,7 @@ class WalkMap extends StatefulWidget {
   final ValueChanged<String>? onPlace;
   final int centerRequest;
   final bool fit, enabled;
+  final Color routeColor;
   const WalkMap({
     super.key,
     this.samples = const [],
@@ -22,6 +23,7 @@ class WalkMap extends StatefulWidget {
     this.centerRequest = 0,
     this.fit = false,
     this.enabled = true,
+    this.routeColor = const Color(0xFF28734E),
   });
   @override
   State<WalkMap> createState() => _WalkMapState();
@@ -59,6 +61,7 @@ class _WalkMapState extends State<WalkMap> {
       'current': widget.current?.toJson(),
       'center': center,
       'fit': widget.fit || fit,
+      'routeColor': widget.routeColor.toARGB32(),
     };
   }
 
@@ -117,6 +120,7 @@ class _WalkMapState extends State<WalkMap> {
         onPlace: widget.onPlace,
         centerRequest: widget.centerRequest,
         fit: widget.fit,
+        routeColor: widget.routeColor,
       );
     if (!supported)
       return const ColoredBox(

@@ -5,6 +5,7 @@ import '../core/ui.dart';
 import '../models/walk_data.dart';
 import '../services/app_controller.dart';
 import '../services/map_service.dart';
+import '../services/route_safety.dart';
 import '../services/walk_session.dart';
 import '../widgets/walk_map.dart';
 import 'history_page.dart';
@@ -224,7 +225,8 @@ class WalkingPageState extends State<WalkingPage> {
           waiting =
               walk.status == WalkStatus.locating ||
               walk.status == WalkStatus.saving ||
-              finishing;
+              finishing,
+          safetyReports = routes.map(assessWalkingRoute).toList();
       return ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -276,6 +278,9 @@ class WalkingPageState extends State<WalkingPage> {
                 route: routes.isEmpty ? [] : routes[selectedRoute].samples,
                 places: places,
                 centerRequest: centerRequest,
+                routeColor: routes.isEmpty
+                    ? const Color(0xFF28734E)
+                    : safetyReports[selectedRoute].color,
                 onPlace: (id) {
                   final place = places.where((p) => p.id == id).firstOrNull;
                   if (place != null) showPlace(place);
@@ -361,6 +366,14 @@ class WalkingPageState extends State<WalkingPage> {
                           Text(
                             '${(routes[selectedRoute].meters / 1000).toStringAsFixed(2)} km · 약 ${(routes[selectedRoute].seconds / 60).ceil()}분',
                           ),
+                          const SizedBox(height: 5),
+                          Text(
+                            '${safetyReports[selectedRoute].label} · 참고 점수 ${safetyReports[selectedRoute].score}점',
+                            style: TextStyle(
+                              color: safetyReports[selectedRoute].color,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -381,7 +394,12 @@ class WalkingPageState extends State<WalkingPage> {
                         '${i == 0 ? '가장 빠른 제공 경로' : '대안 경로 $i'} · ${(routes[i].meters / 1000).toStringAsFixed(2)} km',
                       ),
                       subtitle: Text(
-                        '약 ${(routes[i].seconds / 60).ceil()}분 · 인도 정보 미확인',
+                        '약 ${(routes[i].seconds / 60).ceil()}분 · ${safetyReports[i].label} · 확인 ${(safetyReports[i].knownFraction * 100).round()}%',
+                      ),
+                      secondary: CircleAvatar(
+                        backgroundColor: safetyReports[i].color,
+                        foregroundColor: Colors.white,
+                        child: Text('${safetyReports[i].score}'),
                       ),
                     ),
                 ],
@@ -405,17 +423,11 @@ class WalkingPageState extends State<WalkingPage> {
               onPressed: () => showDialog<void>(
                 context: context,
                 builder: (context) {
-                  final report = evaluateSafety([
-                    SafetySegment(
-                      routes[selectedRoute].meters,
-                      true,
-                      SidewalkStatus.unknown,
-                    ),
-                  ]);
+                  final report = safetyReports[selectedRoute];
                   return AlertDialog(
                     title: const Text('인도 안전 정보'),
                     content: Text(
-                      '인도 확인 데이터: ${(report.knownFraction * 100).round()}%\n\n인도 확인: 0%\n인도 없음 확인: 0%\n인도 정보 미확인: 100%\n\n미확인은 인도가 없다는 뜻이 아니에요. 현재 지도 공급자는 인도·횡단보도 정보를 제공하지 않아 안전 우선 경로를 비교할 수 없어요.',
+                      '${report.label}\n참고 점수: ${report.score}점\n확인 가능한 경로 정보: ${(report.knownFraction * 100).round()}%\n\n${report.reasons.map((reason) => '• $reason').join('\n')}\n\n미확인은 인도가 없다는 뜻이 아니에요. 이 점수는 경로 안내에 포함된 도로 표현만 비교하며 실제 현장 안전을 보장하지 않아요.',
                     ),
                     actions: [
                       TextButton(
@@ -432,7 +444,7 @@ class WalkingPageState extends State<WalkingPage> {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              '제공되는 도보 경로는 지도 서비스와 지역에 따라 달라질 수 있어요. 인도·횡단보도 안전성은 확인되지 않았으며, 안전 우선 경로를 보장하지 않아요.',
+              '초록은 안전이 보장된다는 뜻이 아니라 보행 관련 정보가 더 많이 확인된 경로예요. 지도 데이터 기반 참고 정보이며 실제 인도·공사·조명·차량 상황을 보장하지 않아요.',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ),

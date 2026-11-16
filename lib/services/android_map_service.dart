@@ -211,7 +211,7 @@ class AndroidMapService implements MapService {
               distance = (step['distance'] as num? ?? 0).round();
           if (distance > 0)
             instructions.add(
-              '${road.isEmpty ? '보행 경로' : road} · ${distance}m 이동',
+              '${road.isEmpty ? '이름 없는 구간' : road} · ${distance}m 이동',
             );
         }
       }

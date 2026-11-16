@@ -81,7 +81,7 @@ class AndroidWalkMap extends StatefulWidget {
 }
 
 class _AndroidWalkMapState extends State<AndroidWalkMap> {
-  static const nearbyZoom = 19.0;
+  static const nearbyZoom = 17.0;
   static final koreaMapBounds = LatLngBounds(
     const LatLng(koreaSouth, koreaWest),
     const LatLng(koreaNorth, koreaEast),

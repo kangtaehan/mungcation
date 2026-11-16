@@ -89,7 +89,7 @@ void main() {
           .options;
       expect(options.minZoom, 6);
       expect(options.maxZoom, 19);
-      expect(options.initialZoom, 19);
+      expect(options.initialZoom, 17);
       expect(options.cameraConstraint, isA<ContainCameraCenter>());
       expect(find.byTooltip('확대'), findsOneWidget);
       expect(find.byTooltip('축소'), findsOneWidget);

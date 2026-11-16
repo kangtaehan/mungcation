@@ -20,21 +20,29 @@ void main() {
     expect(nearbyTargetMinutes('대형견'), 60);
   });
 
-  test('small and large dogs receive different walking-distance places', () {
-    final candidates = [place('near', 37.0078), place('far', 37.0156)];
+  test('larger dog sizes include every shorter walking range', () {
+    final candidates = [
+      place('30-minute', 37.0077),
+      place('45-minute', 37.0116),
+      place('60-minute', 37.0154),
+    ];
     final small = selectNearbyWalkPlaces(current, candidates, '소형견');
+    final medium = selectNearbyWalkPlaces(current, candidates, '중형견');
     final large = selectNearbyWalkPlaces(current, candidates, '대형견');
-    expect(small.places.map((item) => item.id), contains('near'));
-    expect(small.places.map((item) => item.id), isNot(contains('far')));
-    expect(large.places.map((item) => item.id), contains('far'));
-    expect(large.places.map((item) => item.id), isNot(contains('near')));
+    expect(small.places.map((item) => item.id), ['30-minute']);
+    expect(medium.places.map((item) => item.id), ['30-minute', '45-minute']);
+    expect(large.places.map((item) => item.id), [
+      '30-minute',
+      '45-minute',
+      '60-minute',
+    ]);
   });
 
   test('closest-time fallback avoids an empty result', () {
     final selection = selectNearbyWalkPlaces(current, [
-      place('very-near', 37.0001),
+      place('too-far', 37.03),
     ], '대형견');
     expect(selection.usedFallback, true);
-    expect(selection.places.single.id, 'very-near');
+    expect(selection.places.single.id, 'too-far');
   });
 }

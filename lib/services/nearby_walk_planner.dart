@@ -44,14 +44,9 @@ NearbyPlaceSelection selectNearbyWalkPlaces(
           )
           .where((item) => item.minutes.isFinite && item.minutes > 0)
           .toList()
-        ..sort(
-          (a, b) =>
-              (a.minutes - target).abs().compareTo((b.minutes - target).abs()),
-        );
+        ..sort((a, b) => a.minutes.compareTo(b.minutes));
   final preferred = ranked
-      .where(
-        (item) => item.minutes >= target * .65 && item.minutes <= target * 1.35,
-      )
+      .where((item) => item.minutes <= target)
       .map((item) => item.place)
       .take(30)
       .toList();
@@ -59,7 +54,13 @@ NearbyPlaceSelection selectNearbyWalkPlaces(
     return NearbyPlaceSelection(preferred, target);
   }
   return NearbyPlaceSelection(
-    ranked.map((item) => item.place).take(10).toList(),
+    (ranked.toList()..sort(
+          (a, b) =>
+              (a.minutes - target).abs().compareTo((b.minutes - target).abs()),
+        ))
+        .map((item) => item.place)
+        .take(10)
+        .toList(),
     target,
     usedFallback: ranked.isNotEmpty,
   );

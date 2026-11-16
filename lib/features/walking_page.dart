@@ -94,8 +94,8 @@ class WalkingPageState extends State<WalkingPage> {
           discoveredNearby = true;
           centerRequest++;
           nearbySummary = selection.usedFallback
-              ? '$dogSize 권장 왕복 ${selection.targetMinutes}분에 가까운 장소가 적어 가장 비슷한 후보를 보여드려요.'
-              : '$dogSize 기준 예상 왕복 약 ${selection.targetMinutes}분인 장소를 보여드려요.';
+              ? '$dogSize 권장 왕복 ${selection.targetMinutes}분 이내 장소가 없어 가장 가까운 후보를 보여드려요.'
+              : '$dogSize 기준 예상 왕복 ${selection.targetMinutes}분 이내 장소를 가까운 순서로 보여드려요.';
           if (places.isEmpty) error = '권장 산책 시간에 맞는 주변 장소를 찾지 못했어요.';
         });
         widget.session.places = places;

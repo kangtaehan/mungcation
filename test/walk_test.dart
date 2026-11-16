@@ -52,6 +52,22 @@ WalkDraft makeDraft(
 );
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('manual location reports whether a fresh fix was received', () async {
+    final now = DateTime(2026, 11, 16, 10);
+    final source = FakeLocation(GeoSample(37.5, 127, 8, now));
+    final app = AppController(MemoryRepository());
+    await app.load();
+    final session = WalkSession(app, source: source, now: () => now);
+    expect(await session.locate(), true);
+    expect(session.current?.accuracy, 8);
+    source.denied = true;
+    expect(await session.locate(), false);
+    expect(session.error, isNotNull);
+    session.dispose();
+    app.dispose();
+    await source.events.close();
+  });
+
   test(
     'GPS rejects stale, mock, imprecise, duplicate, jitter and teleport samples',
     () async {

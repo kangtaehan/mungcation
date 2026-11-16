@@ -33,13 +33,42 @@ class DeviceLocation implements LocationSource {
           '잠금 화면 산책 기록에는 산책 중 알림 표시가 필요해요. 설정에서 알림을 허용하거나 잠금 화면 기록을 꺼 주세요.',
         );
     }
-    final p = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.best,
-        timeLimit: Duration(seconds: 25),
-      ),
+    final settings = settingsFor(
+      android: !kIsWeb && Platform.isAndroid,
+      background: false,
     );
-    return convert(p);
+    final first = await Geolocator.getCurrentPosition(
+      locationSettings: settings,
+    );
+    if (kIsWeb || first.accuracy <= 20) return convert(first);
+    return convert(await _refine(first, settings));
+  }
+
+  Future<Position> _refine(Position first, LocationSettings settings) async {
+    var best = first;
+    final result = Completer<Position>();
+    late final StreamSubscription<Position> subscription;
+    Timer? timer;
+    void complete() {
+      if (!result.isCompleted) result.complete(best);
+    }
+
+    subscription = Geolocator.getPositionStream(locationSettings: settings)
+        .listen(
+          (candidate) {
+            if (candidate.accuracy < best.accuracy) best = candidate;
+            if (best.accuracy <= 20) complete();
+          },
+          onError: (_) => complete(),
+          onDone: complete,
+        );
+    timer = Timer(const Duration(seconds: 6), complete);
+    try {
+      return await result.future;
+    } finally {
+      timer.cancel();
+      await subscription.cancel();
+    }
   }
 
   static GeoSample convert(Position p) => GeoSample(

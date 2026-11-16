@@ -56,22 +56,26 @@ class WalkSession extends ChangeNotifier with WidgetsBindingObserver {
     changed();
   }
 
-  Future<void> locate() async {
-    if (status == WalkStatus.locating || status == WalkStatus.saving) return;
+  Future<bool> locate() async {
+    if (status == WalkStatus.locating || status == WalkStatus.saving) {
+      return false;
+    }
     error = null;
     try {
       final sample = await source.prepare(background: false);
-      if (_disposed) return;
+      if (_disposed) return false;
       if (sample.valid &&
           !sample.mocked &&
-          now().difference(sample.time).abs() <= const Duration(seconds: 30))
+          now().difference(sample.time).abs() <= const Duration(seconds: 30)) {
         current = sample;
-      else
+      } else {
         throw const LocationFailure('최신 실제 위치를 받지 못했어요. 모의 위치는 사용하지 않아요.');
+      }
     } catch (e) {
       error = _message(e);
     }
     changed();
+    return error == null && current != null;
   }
 
   Future<bool> start() async {

@@ -58,7 +58,12 @@ class WalkingPageState extends State<WalkingPage> {
       error = null;
     });
     try {
-      if (widget.session.current == null) await widget.session.locate();
+      if (!await widget.session.locate()) {
+        if (mounted) {
+          setState(() => error = widget.session.error ?? '현재 위치를 확인하지 못했어요.');
+        }
+        return;
+      }
       if (!mounted) return;
       final center = widget.session.current;
       if (center == null) {
@@ -284,8 +289,11 @@ class WalkingPageState extends State<WalkingPage> {
               onPressed: waiting
                   ? null
                   : () async {
-                      await walk.locate();
-                      if (mounted) setState(() => centerRequest++);
+                      if (await walk.locate() && mounted) {
+                        setState(() => centerRequest++);
+                      } else if (mounted) {
+                        feedback(context, walk.error ?? '현재 위치를 확인하지 못했어요.');
+                      }
                     },
               icon: const Icon(Icons.my_location),
               label: const Text('현재 위치'),

@@ -20,11 +20,7 @@ class MungcationPreviewApp extends StatelessWidget {
     locale: const Locale('ko', 'KR'),
     supportedLocales: const [Locale('ko', 'KR')],
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    theme: ThemeData(
-      useMaterial3: true,
-      scaffoldBackgroundColor: const Color(0xFFFAF8F4),
-      colorScheme: ColorScheme.fromSeed(seedColor: forest, primary: forest),
-    ),
+    theme: mungcationTheme(),
     home: const PreviewShell(),
   );
 }
@@ -105,10 +101,6 @@ class _PreviewShellState extends State<PreviewShell> {
       ),
     ),
     bottomNavigationBar: NavigationBar(
-      height: 78,
-      backgroundColor: const Color(0xFFFFFCF8),
-      elevation: 0,
-      indicatorColor: Colors.transparent,
       selectedIndex: tab,
       onDestinationSelected: (value) => setState(() => tab = value),
       destinations: const [

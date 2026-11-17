@@ -44,7 +44,7 @@ class MungcationApp extends StatelessWidget {
         ? Column(
             children: [
               const Material(
-                color: Color(0xFFFFF1C7),
+                color: mist,
                 child: SafeArea(
                   bottom: false,
                   child: Padding(
@@ -61,11 +61,7 @@ class MungcationApp extends StatelessWidget {
             ],
           )
         : child ?? const SizedBox.shrink(),
-    theme: ThemeData(
-      useMaterial3: true,
-      scaffoldBackgroundColor: const Color(0xFFFAF8F4),
-      colorScheme: ColorScheme.fromSeed(seedColor: forest, primary: forest),
-    ),
+    theme: mungcationTheme(),
     home: Shell(
       repository: repository ?? LocalRepository(),
       locationSource: locationSource,
@@ -208,36 +204,38 @@ class _ShellState extends State<Shell> {
             ],
           ),
         ),
-        bottomNavigationBar: NavigationBar(
-          height: 78,
-          backgroundColor: const Color(0xFFFFFCF8),
-          elevation: 0,
-          selectedIndex: selected == 4 ? 1 : selected,
-          onDestinationSelected: go,
-          indicatorColor: Colors.transparent,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: '홈',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.map_outlined),
-              selectedIcon: Icon(Icons.map),
-              label: '지도',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.storefront_outlined),
-              selectedIcon: Icon(Icons.storefront),
-              label: '상점',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: '마이',
-            ),
-          ],
+        bottomNavigationBar: Container(
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: hairline)),
+          ),
+          child: NavigationBar(
+            elevation: 0,
+            selectedIndex: selected == 4 ? 1 : selected,
+            onDestinationSelected: go,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: '홈',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.map_outlined),
+                selectedIcon: Icon(Icons.map),
+                label: '지도',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.storefront_outlined),
+                selectedIcon: Icon(Icons.storefront),
+                label: '상점',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person),
+                label: '마이',
+              ),
+            ],
+          ),
         ),
       );
     },

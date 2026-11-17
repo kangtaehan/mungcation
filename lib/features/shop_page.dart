@@ -41,7 +41,7 @@ class ShopPage extends StatelessWidget {
                 SizedBox(
                   width: (c.maxWidth - 12) / 2,
                   child: Card(
-                    color: beige,
+                    color: paper,
                     elevation: 0,
                     margin: EdgeInsets.zero,
                     child: Padding(

@@ -11,6 +11,7 @@ import '../services/walk_session.dart';
 import '../services/walk_navigation.dart';
 import '../widgets/walk_map.dart';
 import 'history_page.dart';
+import '../widgets/map_explorer_layout.dart';
 
 class WalkingPage extends StatefulWidget {
   final AppController controller;
@@ -358,7 +359,7 @@ class WalkingPageState extends State<WalkingPage> {
                 title: Text(
                   place.displayName,
                   softWrap: true,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
                   widget.session.current == null
@@ -373,6 +374,105 @@ class WalkingPageState extends State<WalkingPage> {
       ),
     );
   }
+
+  Widget explorerSearch() => Material(
+    color: paper,
+    elevation: 3,
+    shadowColor: const Color(0x160D2917),
+    borderRadius: BorderRadius.circular(20),
+    child: TextField(
+      controller: query,
+      textInputAction: TextInputAction.search,
+      onSubmitted: (_) => search(),
+      decoration: InputDecoration(
+        hintText: '공원 · 카페 · 목적지 검색',
+        prefixIcon: const Icon(Icons.search_rounded, color: forest, size: 22),
+        suffixIcon: IconButton(
+          tooltip: '검색',
+          onPressed: loading ? null : search,
+          icon: const Icon(Icons.arrow_forward_rounded, size: 20),
+        ),
+        filled: true,
+        fillColor: paper,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    ),
+  );
+
+  Widget explorerFilters() => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      children: [
+        ActionChip(
+          avatar: const Icon(Icons.near_me_outlined, size: 16),
+          label: const Text('내 주변'),
+          onPressed: loading
+              ? null
+              : () {
+                  discoveredNearby = false;
+                  discoverNearby();
+                },
+        ),
+        for (final entry in const {
+          '공원': Icons.park_outlined,
+          '카페': Icons.local_cafe_outlined,
+          '동물병원': Icons.local_hospital_outlined,
+        }.entries) ...[
+          const SizedBox(width: 8),
+          ActionChip(
+            avatar: Icon(entry.value, size: 16),
+            label: Text(entry.key),
+            onPressed: loading
+                ? null
+                : () async {
+                    query.text = entry.key;
+                    if (widget.session.current == null &&
+                        !await widget.session.locate())
+                      return;
+                    if (mounted) await search();
+                  },
+          ),
+        ],
+      ],
+    ),
+  );
+
+  Widget explorerHeading() => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text('함께 걷는 길', style: Theme.of(context).textTheme.titleLarge),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: mist,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            places.isEmpty ? '산책 준비' : '${places.length}곳',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: forest,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Future<void> begin() async {
     final agreed = await confirm(
@@ -444,47 +544,105 @@ class WalkingPageState extends State<WalkingPage> {
               .toSet()
               .take(8)
               .toList();
-      return ListView(
-        padding: const EdgeInsets.all(16),
+      return MapExplorerLayout(
+        map: WalkMap(
+          showBadge: false,
+          enabled: widget.visible,
+          samples: walk.samples,
+          current: walk.current,
+          route: planned?.samples ?? const [],
+          places: places,
+          placeLabels: {
+            if (walk.current case final current?)
+              for (final place in places)
+                place.id:
+                    '왕복 약 ${estimatedRoundTripMinutes(current, place).ceil()}분',
+          },
+          centerRequest: centerRequest,
+          routeColor: routes.isEmpty
+              ? const Color(0xFF28734E)
+              : safetyReports[selectedRoute].color,
+          onPlace: (id) {
+            final place = places.where((p) => p.id == id).firstOrNull;
+            if (place != null) showPlace(place);
+          },
+        ),
+        search: explorerSearch(),
+        filters: explorerFilters(),
         children: [
-          Text('함께 걷는 길', style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 12),
-          TextField(
-            controller: query,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (_) => search(),
-            decoration: InputDecoration(
-              hintText: '공원 · 카페 · 목적지 검색',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: IconButton(
-                tooltip: '검색',
-                onPressed: loading ? null : search,
-                icon: const Icon(Icons.arrow_forward),
-              ),
-              filled: true,
-              fillColor: beige,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
+          explorerHeading(),
           const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.tonalIcon(
-              onPressed: loading
-                  ? null
-                  : () {
-                      discoveredNearby = false;
-                      discoverNearby();
-                    },
-              icon: const Icon(Icons.near_me_outlined),
+          if (!walk.hasWalk)
+            FilledButton.icon(
+              onPressed: waiting ? null : begin,
+              icon: const Icon(Icons.pets),
               label: Text(
-                '내 주변 ${widget.controller.data.pet?.size ?? '소형견'} 맞춤 장소 보기',
+                waiting
+                    ? '위치 확인 중…'
+                    : routes.isNotEmpty
+                    ? '이 경로로 산책 시작'
+                    : '산책 시작하기',
+              ),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(56),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: waiting
+                      ? null
+                      : active
+                      ? walk.pause
+                      : walk.resume,
+                  icon: Icon(active ? Icons.pause : Icons.play_arrow),
+                  label: Text(active ? '일시정지' : '이어서 걷기'),
+                ),
+                OutlinedButton(
+                  onPressed: waiting ? null : finish,
+                  child: Text(finishing ? '저장 중…' : '산책 종료'),
+                ),
+                TextButton(
+                  onPressed: waiting
+                      ? null
+                      : () async {
+                          if (await confirm(
+                                context,
+                                '이 산책을 버릴까요?',
+                                '현재 산책의 경로·시간을 삭제하며 보상은 지급하지 않아요.',
+                                action: '버리기',
+                              ) &&
+                              mounted)
+                            await saveAction(context, () async {
+                              await walk.discard();
+                              return true;
+                            });
+                        },
+                  child: const Text('기록 버리기'),
+                ),
+              ],
+            ),
+          if (walk.hasWalk)
+            Card(
+              color: beige,
+              elevation: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Text(
+                      '${(walk.meters / 1000).toStringAsFixed(2)} km · ${durationLabel(walk.seconds)}',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    Text(active ? '산책 기록 중' : '산책 일시정지'),
+                    Text('방문 인증 ${walk.visits.length}곳 · GPS로 자동 확인'),
+                  ],
+                ),
               ),
             ),
-          ),
           if (nearbySummary != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
@@ -493,13 +651,14 @@ class WalkingPageState extends State<WalkingPage> {
                 style: const TextStyle(fontSize: 12, color: Colors.black54),
               ),
             ),
-          const Padding(
-            padding: EdgeInsets.only(top: 6),
-            child: Text(
-              '주변 장소 시간은 직선거리 기반 예상값이에요. 선택 후 실제 도보 경로 시간을 확인해 주세요. 크기별 시간은 기본 필터이며 건강·나이에 맞춰 조절해 주세요.',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
+          if (discoveredNearby)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text(
+                '주변 장소 시간은 직선거리 기반 예상값이에요. 선택 후 실제 도보 경로 시간을 확인해 주세요. 크기별 시간은 기본 필터이며 건강·나이에 맞춰 조절해 주세요.',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
             ),
-          ),
           if (discoveredNearby && nearbyCandidates.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -517,34 +676,6 @@ class WalkingPageState extends State<WalkingPage> {
                 ],
               ),
             ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 360,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: WalkMap(
-                enabled: widget.visible,
-                samples: walk.samples,
-                current: walk.current,
-                route: planned?.samples ?? const [],
-                places: places,
-                placeLabels: {
-                  if (walk.current case final current?)
-                    for (final place in places)
-                      place.id:
-                          '왕복 약 ${estimatedRoundTripMinutes(current, place).ceil()}분',
-                },
-                centerRequest: centerRequest,
-                routeColor: routes.isEmpty
-                    ? const Color(0xFF28734E)
-                    : safetyReports[selectedRoute].color,
-                onPlace: (id) {
-                  final place = places.where((p) => p.id == id).firstOrNull;
-                  if (place != null) showPlace(place);
-                },
-              ),
-            ),
-          ),
           if (planned != null && guidance != null)
             Card(
               margin: const EdgeInsets.only(top: 10),
@@ -806,78 +937,6 @@ class WalkingPageState extends State<WalkingPage> {
                   ),
                 ],
               ),
-            ),
-          if (walk.hasWalk)
-            Card(
-              color: beige,
-              elevation: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Text(
-                      '${(walk.meters / 1000).toStringAsFixed(2)} km · ${durationLabel(walk.seconds)}',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    Text(active ? '산책 기록 중' : '산책 일시정지'),
-                    Text('방문 인증 ${walk.visits.length}곳 · GPS로 자동 확인'),
-                  ],
-                ),
-              ),
-            ),
-          const SizedBox(height: 8),
-          if (!walk.hasWalk)
-            FilledButton.icon(
-              onPressed: waiting ? null : begin,
-              icon: const Icon(Icons.pets),
-              label: Text(
-                waiting
-                    ? '위치 확인 중…'
-                    : routes.isNotEmpty
-                    ? '이 경로로 산책 시작'
-                    : '산책 시작하기',
-              ),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(56),
-              ),
-            )
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilledButton.icon(
-                  onPressed: waiting
-                      ? null
-                      : active
-                      ? walk.pause
-                      : walk.resume,
-                  icon: Icon(active ? Icons.pause : Icons.play_arrow),
-                  label: Text(active ? '일시정지' : '이어서 걷기'),
-                ),
-                OutlinedButton(
-                  onPressed: waiting ? null : finish,
-                  child: Text(finishing ? '저장 중…' : '산책 종료'),
-                ),
-                TextButton(
-                  onPressed: waiting
-                      ? null
-                      : () async {
-                          if (await confirm(
-                                context,
-                                '이 산책을 버릴까요?',
-                                '현재 산책의 경로·시간을 삭제하며 보상은 지급하지 않아요.',
-                                action: '버리기',
-                              ) &&
-                              mounted)
-                            await saveAction(context, () async {
-                              await walk.discard();
-                              return true;
-                            });
-                        },
-                  child: const Text('기록 버리기'),
-                ),
-              ],
             ),
           const SizedBox(height: 16),
           if (places.isNotEmpty)

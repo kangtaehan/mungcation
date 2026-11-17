@@ -53,7 +53,7 @@ Future<
     PlaceInfo destination,
   })
 >
-mountWalk(WidgetTester tester) async {
+mountWalk(WidgetTester tester, {ThemeData? theme}) async {
   final home = position(37.5);
   final app = AppController(
     MemoryRepository(AppData(pet: const PetProfile(name: '몽이'))),
@@ -73,6 +73,7 @@ mountWalk(WidgetTester tester) async {
   );
   await tester.pumpWidget(
     MaterialApp(
+      theme: theme,
       home: Scaffold(
         body: WalkingPage(
           key: key,

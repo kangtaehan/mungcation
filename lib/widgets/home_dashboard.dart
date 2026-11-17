@@ -33,62 +33,63 @@ class HomeDashboard extends StatelessWidget {
     child: ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 720),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 18, 14, 26),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
         children: [
           Row(
             children: [
-              const Icon(Icons.pets, color: forest, size: 36),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: mist,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.pets, color: forest, size: 22),
+              ),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
                   '멍케이션',
                   style: TextStyle(
                     color: forest,
-                    fontSize: 29,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -1.2,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.7,
                   ),
                 ),
               ),
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  IconButton(
-                    tooltip: '알림',
-                    onPressed: onNotifications,
-                    icon: const Icon(Icons.notifications_none_rounded, size: 31),
-                  ),
-                  const Positioned(
-                    right: 7,
-                    top: 6,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Color(0xFFEE6F68),
-                        shape: BoxShape.circle,
-                      ),
-                      child: SizedBox(width: 9, height: 9),
-                    ),
-                  ),
-                ],
+              IconButton(
+                tooltip: '알림',
+                onPressed: onNotifications,
+                icon: const Icon(
+                  Icons.notifications_none_rounded,
+                  color: mutedInk,
+                  size: 24,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          const Text(
+            '오늘도 가볍게, 함께 걸어요.',
+            style: TextStyle(color: mutedInk, fontSize: 14),
+          ),
+          const SizedBox(height: 16),
           room,
           const SizedBox(height: 14),
           FilledButton.icon(
             onPressed: onWalk,
-            icon: const Icon(Icons.pets, size: 29),
+            icon: const Icon(Icons.pets, size: 22),
             label: Text(
               walkInProgress ? '진행 중인 산책 보기' : '산책 시작하기',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
             ),
             style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(64),
+              minimumSize: const Size.fromHeight(56),
               backgroundColor: forest,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
+                borderRadius: BorderRadius.circular(18),
               ),
             ),
           ),
@@ -125,11 +126,11 @@ class HomeDashboard extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Material(
-            color: const Color(0xFFF6F5EA),
-            borderRadius: BorderRadius.circular(22),
+            color: paper,
+            borderRadius: BorderRadius.circular(18),
             child: InkWell(
               onTap: onHistory,
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(18),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(18, 15, 14, 18),
                 child: Column(
@@ -140,12 +141,15 @@ class HomeDashboard extends StatelessWidget {
                           child: Text(
                             '오늘의 산책 기록',
                             style: TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                        const Text('더보기', style: TextStyle(color: Colors.black54)),
+                        const Text(
+                          '더보기',
+                          style: TextStyle(color: Colors.black54),
+                        ),
                         const Icon(Icons.chevron_right, color: Colors.black54),
                       ],
                     ),
@@ -158,12 +162,9 @@ class HomeDashboard extends StatelessWidget {
                             value: distance,
                           ),
                         ),
-                        Container(width: 1, height: 34, color: const Color(0xFFDCDCCF)),
+                        Container(width: 1, height: 34, color: hairline),
                         Expanded(
-                          child: _Stat(
-                            icon: Icons.schedule,
-                            value: duration,
-                          ),
+                          child: _Stat(icon: Icons.schedule, value: duration),
                         ),
                       ],
                     ),
@@ -193,34 +194,36 @@ class _ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: const Color(0xFFFBF6ED),
-    borderRadius: BorderRadius.circular(23),
+    color: paper,
+    borderRadius: BorderRadius.circular(18),
     child: InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(23),
+      borderRadius: BorderRadius.circular(18),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: forest, size: 37),
-            const SizedBox(height: 10),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                title,
-                maxLines: 1,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: mist,
+                borderRadius: BorderRadius.circular(14),
               ),
+              child: Icon(icon, color: forest, size: 23),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                subtitle,
-                maxLines: 1,
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
-              ),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, color: mutedInk),
             ),
           ],
         ),

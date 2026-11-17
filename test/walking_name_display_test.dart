@@ -22,7 +22,12 @@ void main() {
     await tester.scrollUntilVisible(
       cardName,
       250,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('walk-details-list')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     final richText = find.descendant(
       of: cardName,

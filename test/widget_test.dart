@@ -142,7 +142,12 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('산책 종료'),
       250,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('walk-details-list')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('산책 종료'));

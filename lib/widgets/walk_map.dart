@@ -13,6 +13,7 @@ class WalkMap extends StatefulWidget {
   final ValueChanged<String>? onPlace;
   final int centerRequest;
   final bool fit, enabled;
+  final bool showBadge;
   final Color routeColor;
   const WalkMap({
     super.key,
@@ -25,6 +26,7 @@ class WalkMap extends StatefulWidget {
     this.centerRequest = 0,
     this.fit = false,
     this.enabled = true,
+    this.showBadge = true,
     this.routeColor = const Color(0xFF28734E),
   });
   @override
@@ -124,6 +126,7 @@ class _WalkMapState extends State<WalkMap> {
       );
     if (kIsWeb || Platform.isAndroid)
       return AndroidWalkMap(
+        showBadge: widget.showBadge,
         samples: widget.samples,
         route: widget.route,
         places: widget.places,

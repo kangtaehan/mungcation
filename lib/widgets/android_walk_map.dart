@@ -6,6 +6,7 @@ import '../core/ui.dart';
 import '../models/walk_data.dart';
 import '../services/android_map_configuration.dart';
 import '../services/android_map_service.dart';
+import 'map_explorer_layout.dart';
 
 class TrackOverlays {
   final List<List<GeoSample>> segments;
@@ -63,6 +64,7 @@ class AndroidWalkMap extends StatefulWidget {
   final ValueChanged<String>? onPlace;
   final int centerRequest;
   final bool fit;
+  final bool showBadge;
   final Color routeColor;
   final AndroidMapConfiguration? configuration;
   final TileProvider? tileProvider;
@@ -76,6 +78,7 @@ class AndroidWalkMap extends StatefulWidget {
     this.onPlace,
     this.centerRequest = 0,
     this.fit = false,
+    this.showBadge = true,
     this.routeColor = const Color(0xFF28734E),
     this.configuration,
     this.tileProvider,
@@ -356,11 +359,12 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                   ),
                 ],
               ),
-              const Positioned(
-                top: 12,
-                left: 12,
-                child: IgnorePointer(child: MungcationMapBadge()),
-              ),
+              if (widget.showBadge)
+                const Positioned(
+                  top: 12,
+                  left: 12,
+                  child: IgnorePointer(child: MungcationMapBadge()),
+                ),
               Positioned(
                 top: 12,
                 right: 12,
@@ -371,8 +375,10 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                 ),
               ),
               if (tileError)
-                Align(
-                  alignment: Alignment.topCenter,
+                Positioned(
+                  top: widget.showBadge ? 0 : 185,
+                  left: 0,
+                  right: 72,
                   child: Material(
                     color: const Color(0xFFFFF4DF),
                     child: Padding(
@@ -398,9 +404,9 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                   ),
                 ),
               Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
+                bottom: MapSheetInset.of(context) + 6,
+                left: widget.showBadge ? 0 : 16,
+                right: widget.showBadge ? 0 : 72,
                 child: Material(
                   color: Colors.white.withValues(alpha: .95),
                   child: Wrap(
@@ -484,9 +490,9 @@ class PixelPlaceMarker extends StatelessWidget {
     this.width = 178,
   });
   static const nameStyle = TextStyle(
-    fontSize: 11,
+    fontSize: 12,
     height: 1.25,
-    fontWeight: FontWeight.w900,
+    fontWeight: FontWeight.w600,
   );
   static const subtitleStyle = TextStyle(
     fontSize: 9,
@@ -547,12 +553,12 @@ class PixelPlaceMarker extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(color: color.withValues(alpha: .35)),
+            border: Border.all(color: color.withValues(alpha: .15)),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: .12),
-                blurRadius: 8,
+                color: Colors.black.withValues(alpha: .07),
+                blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
             ],
@@ -626,7 +632,7 @@ class MungcationMapBadge extends StatelessWidget {
             style: TextStyle(
               color: forest,
               fontSize: 12,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -653,7 +659,7 @@ class PixelMapControls extends StatelessWidget {
       const SizedBox(height: 7),
       PixelMapButton(
         tooltip: '현재 위치로 이동',
-        icon: Icons.pets,
+        icon: Icons.my_location_rounded,
         onPressed: onCenter,
       ),
     ],
@@ -675,13 +681,13 @@ class PixelMapButton extends StatelessWidget {
   Widget build(BuildContext context) => Material(
     color: const Color(0xF5FFFFFF),
     shape: const CircleBorder(),
-    elevation: 2,
-    shadowColor: const Color(0x33000000),
+    elevation: 1,
+    shadowColor: const Color(0x18000000),
     child: IconButton(
       tooltip: tooltip,
       onPressed: onPressed,
-      visualDensity: VisualDensity.compact,
-      icon: Icon(icon, color: forest, size: 20),
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+      icon: Icon(icon, color: forest, size: 21),
     ),
   );
 }

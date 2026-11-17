@@ -85,7 +85,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
           .where(
             (s) =>
                 query.text.trim().isEmpty ||
-                '${s.place.name} ${s.place.address} ${s.note}'
+                '${s.place.displayName} ${s.place.address} ${s.note}'
                     .toLowerCase()
                     .contains(query.text.trim().toLowerCase()),
           )
@@ -205,7 +205,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
                 leading: Icon(
                   place.rewardEligible ? Icons.park : Icons.storefront_outlined,
                 ),
-                title: Text(place.name),
+                title: Text(place.displayName),
                 subtitle: Text('${place.address}\n반려견 동반: 확인 필요'),
                 isThreeLine: true,
                 trailing: const Icon(Icons.chevron_right),

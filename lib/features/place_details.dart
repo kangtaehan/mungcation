@@ -31,7 +31,7 @@ class PlaceDetails extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                place.name,
+                place.displayName,
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 12),
@@ -223,7 +223,7 @@ class _PlaceNoteEditorState extends State<PlaceNoteEditor> {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
-            Text(widget.place.name),
+            Text(widget.place.displayName),
             const SizedBox(height: 12),
             const Text(
               '이 기기에 저장하는 개인 메모예요. 다른 사용자에게 공개하거나 공식 매장 정보로 표시하지 않아요. 저장하면 즐겨찾기에 추가돼요.',

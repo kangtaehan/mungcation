@@ -329,78 +329,46 @@ class WalkingPageState extends State<WalkingPage> {
     return Padding(
       padding: const EdgeInsets.only(top: 20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               if (icon != null) Icon(icon, size: 20, color: forest),
               if (icon != null) const SizedBox(width: 7),
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          SizedBox(
-            height: 112,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: items.take(8).length,
-              separatorBuilder: (_, _) => const SizedBox(width: 10),
-              itemBuilder: (context, index) {
-                final place = items[index];
-                final minutes = widget.session.current == null
-                    ? null
-                    : estimatedRoundTripMinutes(
-                        widget.session.current!,
-                        place,
-                      ).ceil();
-                return SizedBox(
-                  width: 170,
-                  child: Card(
-                    elevation: 0,
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      side: const BorderSide(color: Color(0xFFE4E7E3)),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: () => showPlace(place),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              place.rewardEligible ? Icons.park : Icons.pets,
-                              color: forest,
-                            ),
-                            const Spacer(),
-                            Text(
-                              place.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            Text(
-                              minutes == null
-                                  ? place.category
-                                  : '예상 왕복 $minutes분',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
+          for (final place in items)
+            Card(
+              key: ValueKey('suggestion-${place.id}'),
+              elevation: 0,
+              color: Colors.white,
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(12),
+                leading: Icon(
+                  place.rewardEligible ? Icons.park : Icons.pets,
+                  color: forest,
+                ),
+                title: Text(
+                  place.displayName,
+                  softWrap: true,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: Text(
+                  widget.session.current == null
+                      ? place.category
+                      : '예상 왕복 ${estimatedRoundTripMinutes(widget.session.current!, place).ceil()}분',
+                  softWrap: true,
+                ),
+                onTap: () => showPlace(place),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -607,8 +575,6 @@ class WalkingPageState extends State<WalkingPage> {
                             guidance.offRoute
                                 ? '경로를 벗어나 다시 찾고 있어요'
                                 : guidance.instruction,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
                           Text(
@@ -665,7 +631,7 @@ class WalkingPageState extends State<WalkingPage> {
           if (destination != null)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('목적지 · ${destination!.name}'),
+              title: Text('목적지 · ${destination!.displayName}'),
               trailing: IconButton(
                 tooltip: '목적지 해제',
                 onPressed: () {
@@ -697,7 +663,7 @@ class WalkingPageState extends State<WalkingPage> {
                           Text(
                             routeIsReturnOnly
                                 ? '출발 위치로 귀환'
-                                : destination?.name ?? '선택한 산책 경로',
+                                : destination?.displayName ?? '선택한 산책 경로',
                             style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
                           Text(
@@ -925,13 +891,11 @@ class WalkingPageState extends State<WalkingPage> {
               leading: Icon(
                 place.rewardEligible ? Icons.park : Icons.place_outlined,
               ),
-              title: Text(place.name),
+              title: Text(place.displayName),
               subtitle: Text(
                 place.rewardEligible
                     ? '공원 · 자동 방문 인증 시 최대 +30P'
                     : place.address,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
               onTap: () => showPlace(place),
             ),

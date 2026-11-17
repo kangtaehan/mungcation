@@ -179,6 +179,11 @@ class PlaceInfo {
     this.source = 'Apple 지도',
   });
   bool get rewardEligible => category == 'park';
+  String get displayName => name.trim().isNotEmpty
+      ? name.trim()
+      : address.trim().isNotEmpty
+      ? address.trim()
+      : '이름 정보 없음';
   factory PlaceInfo.fromJson(Map<String, dynamic> j) => PlaceInfo(
     id: j['id'] as String,
     name: j['name'] as String,
@@ -211,7 +216,7 @@ class PlaceInfo {
   };
   Map<String, dynamic> toMap() => {
     'id': id,
-    'name': name,
+    'name': displayName,
     'lat': location.latitude,
     'lon': location.longitude,
     'points': rewardEligible ? 30 : 0,

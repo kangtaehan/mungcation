@@ -103,6 +103,7 @@ class AndroidMapService implements MapService {
       'limit': '15',
       'addressdetails': '1',
       'extratags': '1',
+      'namedetails': '1',
       'accept-language': 'ko',
       'countrycodes': 'kr',
       'q': category == null
@@ -142,9 +143,19 @@ class AndroidMapService implements MapService {
           final tags = Map<String, dynamic>.from(e['extratags'] as Map? ?? {}),
               address = '${e['display_name'] ?? ''}';
           final park = e['class'] == 'leisure' && e['type'] == 'park';
+          final names = Map<String, dynamic>.from(
+            e['namedetails'] as Map? ?? {},
+          );
+          final name =
+              [names['name:ko'], e['name'], names['name'], address]
+                  .whereType<String>()
+                  .map((value) => value.trim())
+                  .where((value) => value.isNotEmpty)
+                  .firstOrNull ??
+              '이름 정보 없음';
           return PlaceInfo(
             id: 'osm-${e['osm_type'] ?? 'place'}-${e['osm_id'] ?? e['place_id']}',
-            name: '${e['name'] ?? address.split(',').first}',
+            name: name,
             address: address,
             category: park ? 'park' : 'unknown',
             location: location,

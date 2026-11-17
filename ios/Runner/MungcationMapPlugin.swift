@@ -55,7 +55,10 @@ final class MungcationMapPlugin: NSObject, FlutterPlugin {
           let c = item.placemark.coordinate
           let identity = String(format: "%.5f,%.5f", c.latitude, c.longitude)
           let identifier = SHA256.hash(data: Data(identity.utf8)).map { String(format: "%02x", $0) }.joined()
-          return ["id": identifier, "name": item.name ?? "이름 없음", "address": item.placemark.title ?? "", "lat": c.latitude, "lon": c.longitude, "phone": item.phoneNumber ?? "", "url": item.url?.absoluteString ?? "", "category": item.pointOfInterestCategory == .park ? "park" : "unknown"]
+          let rawName = item.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+          let address = item.placemark.title ?? ""
+          let name = rawName.isEmpty ? (address.isEmpty ? "이름 정보 없음" : address) : rawName
+          return ["id": identifier, "name": name, "address": address, "lat": c.latitude, "lon": c.longitude, "phone": item.phoneNumber ?? "", "url": item.url?.absoluteString ?? "", "category": item.pointOfInterestCategory == .park ? "park" : "unknown"]
         })
       }
     case "directions":
@@ -172,6 +175,40 @@ final class PetMap: NSObject, FlutterPlatformView, MKMapViewDelegate {
     if pin.kind == "paw" {
       let view = MKAnnotationView(annotation: pin, reuseIdentifier: nil)
       let label = UILabel(frame: CGRect(x: 0,y: 0,width: 22,height: 22));label.text = "🐾";label.font = .systemFont(ofSize: 16);view.addSubview(label);view.frame = label.frame;view.isEnabled = false;return view
+    }
+    if pin.kind == "place" {
+      let view = MKAnnotationView(annotation: pin, reuseIdentifier: nil)
+      let name = UILabel()
+      name.text = pin.title
+      name.numberOfLines = 0
+      name.lineBreakMode = .byWordWrapping
+      name.font = .preferredFont(forTextStyle: .caption1)
+      name.adjustsFontForContentSizeCategory = true
+      name.textAlignment = .center
+      name.textColor = UIColor(red: 32/255, green: 92/255, blue: 64/255, alpha: 1)
+      name.backgroundColor = .white
+      name.layer.cornerRadius = 8
+      name.layer.masksToBounds = true
+      let width = min(CGFloat(220), max(CGFloat(100), map.bounds.width - 32))
+      let size = name.sizeThatFits(CGSize(width: width - 12, height: .greatestFiniteMagnitude))
+      name.frame = CGRect(x: 6, y: 4, width: width - 12, height: ceil(size.height) + 4)
+      let glyph = UILabel(frame: CGRect(x: 0, y: name.frame.maxY + 3, width: width, height: 28))
+      glyph.text = pin.points > 0 ? "🌳 +\(pin.points)P" : "📍"
+      glyph.textAlignment = .center
+      view.frame = CGRect(x: 0, y: 0, width: width, height: glyph.frame.maxY)
+      view.addSubview(name)
+      view.addSubview(glyph)
+      view.centerOffset = CGPoint(x: 0, y: -view.bounds.height / 2)
+      view.canShowCallout = true
+      view.displayPriority = .required
+      view.rightCalloutAccessoryView = UIButton(type: .detailDisclosure)
+      let fullName = UILabel()
+      fullName.text = pin.title
+      fullName.numberOfLines = 0
+      fullName.font = .preferredFont(forTextStyle: .body)
+      fullName.widthAnchor.constraint(lessThanOrEqualToConstant: 240).isActive = true
+      view.detailCalloutAccessoryView = fullName
+      return view
     }
     let view = MKMarkerAnnotationView(annotation: pin, reuseIdentifier: nil)
     view.markerTintColor = pin.kind == "current" ? .systemBlue : UIColor(red: 32/255,green: 92/255,blue: 64/255,alpha: 1)

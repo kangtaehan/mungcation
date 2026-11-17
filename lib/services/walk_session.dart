@@ -265,7 +265,9 @@ class WalkSession extends ChangeNotifier with WidgetsBindingObserver {
       if (distanceBetween(fix, place.location) + fix.accuracy <= 60) {
         final since = _dwell.putIfAbsent(place.id, () => fix.time);
         if (fix.time.difference(since) >= const Duration(seconds: 10))
-          _visits.add(Visit(place.id, place.name, fix.time, RewardPolicy.park));
+          _visits.add(
+            Visit(place.id, place.displayName, fix.time, RewardPolicy.park),
+          );
       } else {
         _dwell.remove(place.id);
       }

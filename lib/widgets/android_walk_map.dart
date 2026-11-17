@@ -182,250 +182,265 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
           : points.isNotEmpty
           ? points.first
           : const LatLng(36.4, 127.8);
-      return Stack(
-        children: [
-          FlutterMap(
-            mapController: controller,
-            options: MapOptions(
-              initialCenter: start,
-              initialZoom: widget.current?.valid == true
-                  ? nearbyZoom
-                  : points.isEmpty
-                  ? 6
-                  : 16,
-              minZoom: 6,
-              maxZoom: 19,
-              cameraConstraint: CameraConstraint.containCenter(
-                bounds: koreaMapBounds,
-              ),
-              initialCameraFit: widget.fit && points.length > 1
-                  ? CameraFit.bounds(
-                      bounds: LatLngBounds.fromPoints(points),
-                      padding: const EdgeInsets.all(35),
-                      maxZoom: 18,
-                    )
-                  : null,
-              onMapReady: () {
-                ready = true;
-              },
-            ),
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final markerWidth = (constraints.maxWidth - 32).clamp(80.0, 220.0);
+          return Stack(
             children: [
-              TileLayer(
-                key: ValueKey('${config.tiles}-$retry'),
-                urlTemplate: config.tiles,
-                userAgentPackageName: 'com.mungcation.mungcation',
-                maxNativeZoom: 19,
-                tileProvider: widget.tileProvider,
-                keepBuffer: 0,
-                panBuffer: 0,
-                errorTileCallback: (tile, error, stack) {
-                  if (!tileError)
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) setState(() => tileError = true);
-                    });
-                },
-              ),
-              PolylineLayer(
-                polylines: [
-                  for (final segment in overlays.segments.where(
-                    (s) => s.length > 1,
-                  ))
-                    Polyline(
-                      points: segment.map(point).toList(),
-                      color: forest,
-                      strokeWidth: 5,
-                    ),
-                  if (widget.route.length > 1)
-                    Polyline(
-                      points: widget.route
-                          .where((p) => p.valid)
-                          .map(point)
-                          .toList(),
-                      color: const Color(0xFFFFF1D2),
-                      strokeWidth: 9,
-                    ),
-                  if (widget.route.length > 1)
-                    Polyline(
-                      points: widget.route
-                          .where((p) => p.valid)
-                          .map(point)
-                          .toList(),
-                      color: widget.routeColor,
-                      strokeWidth: 5,
-                      pattern: StrokePattern.dashed(segments: [10, 4]),
-                    ),
-                ],
-              ),
-              MarkerLayer(
-                rotate: true,
-                markers: [
-                  for (final paw in overlays.footprints)
-                    Marker(
-                      point: point(paw),
-                      width: 20,
-                      height: 20,
-                      child: const IgnorePointer(
-                        child: Icon(
-                          Icons.pets,
-                          size: 17,
-                          color: Color(0xFFB8794E),
+              FlutterMap(
+                mapController: controller,
+                options: MapOptions(
+                  initialCenter: start,
+                  initialZoom: widget.current?.valid == true
+                      ? nearbyZoom
+                      : points.isEmpty
+                      ? 6
+                      : 16,
+                  minZoom: 6,
+                  maxZoom: 19,
+                  cameraConstraint: CameraConstraint.containCenter(
+                    bounds: koreaMapBounds,
+                  ),
+                  initialCameraFit: widget.fit && points.length > 1
+                      ? CameraFit.bounds(
+                          bounds: LatLngBounds.fromPoints(points),
+                          padding: const EdgeInsets.all(35),
+                          maxZoom: 18,
+                        )
+                      : null,
+                  onMapReady: () {
+                    ready = true;
+                  },
+                ),
+                children: [
+                  TileLayer(
+                    key: ValueKey('${config.tiles}-$retry'),
+                    urlTemplate: config.tiles,
+                    userAgentPackageName: 'com.mungcation.mungcation',
+                    maxNativeZoom: 19,
+                    tileProvider: widget.tileProvider,
+                    keepBuffer: 0,
+                    panBuffer: 0,
+                    errorTileCallback: (tile, error, stack) {
+                      if (!tileError)
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) setState(() => tileError = true);
+                        });
+                    },
+                  ),
+                  PolylineLayer(
+                    polylines: [
+                      for (final segment in overlays.segments.where(
+                        (s) => s.length > 1,
+                      ))
+                        Polyline(
+                          points: segment.map(point).toList(),
+                          color: forest,
+                          strokeWidth: 5,
                         ),
-                      ),
-                    ),
-                  for (final paw in routePaws)
-                    Marker(
-                      point: point(paw),
-                      width: 18,
-                      height: 18,
-                      child: const IgnorePointer(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Color(0xCCFFF8E9),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.pets, size: 12, color: forest),
+                      if (widget.route.length > 1)
+                        Polyline(
+                          points: widget.route
+                              .where((p) => p.valid)
+                              .map(point)
+                              .toList(),
+                          color: const Color(0xFFFFF1D2),
+                          strokeWidth: 9,
                         ),
-                      ),
-                    ),
-                  for (final place in widget.places.where(
-                    (p) => p.location.valid,
-                  ))
-                    Marker(
-                      point: point(place.location),
-                      width: 126,
-                      height: 82,
-                      child: GestureDetector(
-                        onTap: () => widget.onPlace?.call(place.id),
-                        child: Semantics(
-                          label:
-                              '${place.name}, ${place.rewardEligible ? '공원 방문 최대 30포인트' : '장소 상세'}',
-                          button: true,
-                          child: PixelPlaceMarker(
-                            place: place,
-                            subtitle: widget.placeLabels[place.id],
+                      if (widget.route.length > 1)
+                        Polyline(
+                          points: widget.route
+                              .where((p) => p.valid)
+                              .map(point)
+                              .toList(),
+                          color: widget.routeColor,
+                          strokeWidth: 5,
+                          pattern: StrokePattern.dashed(segments: [10, 4]),
+                        ),
+                    ],
+                  ),
+                  MarkerLayer(
+                    rotate: true,
+                    markers: [
+                      for (final paw in overlays.footprints)
+                        Marker(
+                          point: point(paw),
+                          width: 20,
+                          height: 20,
+                          child: const IgnorePointer(
+                            child: Icon(
+                              Icons.pets,
+                              size: 17,
+                              color: Color(0xFFB8794E),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  if (widget.current?.valid == true)
-                    Marker(
-                      point: point(widget.current!),
-                      width: 48,
-                      height: 48,
-                      child: Semantics(
-                        label: '마지막으로 받은 위치',
-                        child: TweenAnimationBuilder<double>(
-                          key: ValueKey(widget.current!.time),
-                          tween: Tween(begin: .82, end: 1),
-                          duration: const Duration(milliseconds: 550),
-                          curve: Curves.elasticOut,
-                          builder: (context, scale, child) =>
-                              Transform.scale(scale: scale, child: child),
-                          child: const DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: Color(0xFFFFF4D8),
-                              shape: BoxShape.circle,
-                              border: Border.fromBorderSide(
-                                BorderSide(color: Colors.white, width: 3),
+                      for (final paw in routePaws)
+                        Marker(
+                          point: point(paw),
+                          width: 18,
+                          height: 18,
+                          child: const IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Color(0xCCFFF8E9),
+                                shape: BoxShape.circle,
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Color(0x66205C40),
-                                  offset: Offset(3, 4),
-                                ),
-                              ],
-                            ),
-                            child: CustomPaint(
-                              painter: PixelDogMarkerPainter(),
+                              child: Icon(Icons.pets, size: 12, color: forest),
                             ),
                           ),
                         ),
-                      ),
-                    ),
+                      if (widget.current?.valid == true)
+                        Marker(
+                          point: point(widget.current!),
+                          width: 48,
+                          height: 48,
+                          child: Semantics(
+                            label: '마지막으로 받은 위치',
+                            child: TweenAnimationBuilder<double>(
+                              key: ValueKey(widget.current!.time),
+                              tween: Tween(begin: .82, end: 1),
+                              duration: const Duration(milliseconds: 550),
+                              curve: Curves.elasticOut,
+                              builder: (context, scale, child) =>
+                                  Transform.scale(scale: scale, child: child),
+                              child: const DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Color(0xFFFFF4D8),
+                                  shape: BoxShape.circle,
+                                  border: Border.fromBorderSide(
+                                    BorderSide(color: Colors.white, width: 3),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Color(0x66205C40),
+                                      offset: Offset(3, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: CustomPaint(
+                                  painter: PixelDogMarkerPainter(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      for (final place in widget.places.where(
+                        (p) => p.location.valid,
+                      ))
+                        Marker(
+                          point: point(place.location),
+                          width: markerWidth,
+                          height: PixelPlaceMarker.heightFor(
+                            context,
+                            place,
+                            widget.placeLabels[place.id],
+                            markerWidth,
+                          ),
+                          alignment: Alignment.bottomCenter,
+                          child: GestureDetector(
+                            onTap: () => widget.onPlace?.call(place.id),
+                            child: Semantics(
+                              label:
+                                  '${place.displayName}, ${place.rewardEligible ? '공원 방문 최대 30포인트' : '장소 상세'}',
+                              button: true,
+                              child: PixelPlaceMarker(
+                                place: place,
+                                width: markerWidth,
+                                subtitle: widget.placeLabels[place.id],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
-            ],
-          ),
-          const Positioned(
-            top: 12,
-            left: 12,
-            child: IgnorePointer(child: MungcationMapBadge()),
-          ),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: PixelMapControls(
-              onZoomIn: () => zoom(1),
-              onZoomOut: () => zoom(-1),
-              onCenter: () => fit(center: widget.current?.valid == true),
-            ),
-          ),
-          if (tileError)
-            Align(
-              alignment: Alignment.topCenter,
-              child: Material(
-                color: const Color(0xFFFFF4DF),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
+              const Positioned(
+                top: 12,
+                left: 12,
+                child: IgnorePointer(child: MungcationMapBadge()),
+              ),
+              Positioned(
+                top: 12,
+                right: 12,
+                child: PixelMapControls(
+                  onZoomIn: () => zoom(1),
+                  onZoomOut: () => zoom(-1),
+                  onCenter: () => fit(center: widget.current?.valid == true),
+                ),
+              ),
+              if (tileError)
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: Material(
+                    color: const Color(0xFFFFF4DF),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              '지도 타일을 불러오지 못했어요.',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => setState(() {
+                              tileError = false;
+                              retry++;
+                            }),
+                            child: const Text('재시도'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Material(
+                  color: Colors.white.withValues(alpha: .95),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 10,
                     children: [
-                      const Expanded(
-                        child: Text(
-                          '지도 타일을 불러오지 못했어요.',
-                          style: TextStyle(fontSize: 12),
+                      InkWell(
+                        onTap: () => open(config.attributionUrl),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 7,
+                            horizontal: 3,
+                          ),
+                          child: Text(
+                            config.attribution,
+                            style: const TextStyle(fontSize: 10, color: ink),
+                          ),
                         ),
                       ),
-                      TextButton(
-                        onPressed: () => setState(() {
-                          tileError = false;
-                          retry++;
-                        }),
-                        child: const Text('재시도'),
+                      InkWell(
+                        onTap: () =>
+                            open('https://www.openstreetmap.org/fixthemap'),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: 7,
+                            horizontal: 3,
+                          ),
+                          child: Text(
+                            '지도 수정 안내',
+                            style: TextStyle(fontSize: 10, color: ink),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Material(
-              color: Colors.white.withValues(alpha: .95),
-              child: Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 10,
-                children: [
-                  InkWell(
-                    onTap: () => open(config.attributionUrl),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 7,
-                        horizontal: 3,
-                      ),
-                      child: Text(
-                        config.attribution,
-                        style: const TextStyle(fontSize: 10, color: ink),
-                      ),
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () =>
-                        open('https://www.openstreetmap.org/fixthemap'),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 7, horizontal: 3),
-                      child: Text(
-                        '지도 수정 안내',
-                        style: TextStyle(fontSize: 10, color: ink),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       );
     },
   );
@@ -434,7 +449,7 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
 enum PixelPlaceKind { park, cafe, hospital, stay, restaurant, pet }
 
 PixelPlaceKind pixelPlaceKind(PlaceInfo place) {
-  final value = '${place.category} ${place.name}'.toLowerCase();
+  final value = '${place.category} ${place.displayName}'.toLowerCase();
   if (place.rewardEligible || value.contains('공원') || value.contains('park')) {
     return PixelPlaceKind.park;
   }
@@ -461,7 +476,54 @@ PixelPlaceKind pixelPlaceKind(PlaceInfo place) {
 class PixelPlaceMarker extends StatelessWidget {
   final PlaceInfo place;
   final String? subtitle;
-  const PixelPlaceMarker({super.key, required this.place, this.subtitle});
+  final double width;
+  const PixelPlaceMarker({
+    super.key,
+    required this.place,
+    this.subtitle,
+    this.width = 178,
+  });
+  static const nameStyle = TextStyle(
+    fontSize: 11,
+    height: 1.25,
+    fontWeight: FontWeight.w900,
+  );
+  static const subtitleStyle = TextStyle(
+    fontSize: 9,
+    height: 1.25,
+    color: Color(0xFF5F625E),
+    fontWeight: FontWeight.w700,
+  );
+
+  static String labelFor(PlaceInfo place) =>
+      place.rewardEligible ? '${place.displayName} · +30P' : place.displayName;
+
+  static double heightFor(
+    BuildContext context,
+    PlaceInfo place,
+    String? subtitle,
+    double width,
+  ) {
+    double measure(String text, TextStyle style) {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: DefaultTextStyle.of(context).style.merge(style),
+        ),
+        textDirection: Directionality.of(context),
+        textAlign: TextAlign.center,
+        textScaler: MediaQuery.textScalerOf(context),
+        locale: Localizations.maybeLocaleOf(context),
+      )..layout(maxWidth: width - 16);
+      final height = painter.height;
+      painter.dispose();
+      return height;
+    }
+
+    return measure(labelFor(place), nameStyle) +
+        (subtitle == null ? 0 : measure(subtitle, subtitleStyle)) +
+        45;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -481,7 +543,7 @@ class PixelPlaceMarker extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          constraints: const BoxConstraints(maxWidth: 122),
+          width: width,
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -499,25 +561,17 @@ class PixelPlaceMarker extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                place.rewardEligible ? '${place.name} · +30P' : place.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: color,
-                  fontWeight: FontWeight.w900,
-                ),
+                labelFor(place),
+                softWrap: true,
+                textAlign: TextAlign.center,
+                style: nameStyle.copyWith(color: color),
               ),
               if (subtitle != null)
                 Text(
                   subtitle!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: Color(0xFF5F625E),
-                    fontWeight: FontWeight.w700,
-                  ),
+                  softWrap: true,
+                  textAlign: TextAlign.center,
+                  style: subtitleStyle,
                 ),
             ],
           ),

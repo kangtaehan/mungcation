@@ -30,6 +30,61 @@ http.Response jsonResponse(Object body, {int status = 200}) => http.Response(
 );
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('saved places with blank names still expose a readable label', () {
+    final place = PlaceInfo(
+      id: 'legacy',
+      name: ' ',
+      address: '저장된 장소의 전체 주소',
+      category: 'park',
+      location: GeoSample(37.5, 127, 0, DateTime.now()),
+      fetchedAt: DateTime.now(),
+    );
+    expect(place.displayName, '저장된 장소의 전체 주소');
+    expect(place.toMap()['name'], place.displayName);
+  });
+  test('blank place names use Korean names or the returned address', () async {
+    final service = AndroidMapService(
+      configuration: AndroidMapConfiguration(store: MemoryMapSettings()),
+      client: MockClient((request) async {
+        expect(request.url.queryParameters['namedetails'], '1');
+        return jsonResponse([
+          {
+            'osm_id': 1,
+            'name': '',
+            'namedetails': {'name:ko': '한강 시민 공원 긴 정식 이름'},
+            'display_name': '서울 주소',
+            'lat': '37.5',
+            'lon': '127',
+          },
+          {
+            'osm_id': 2,
+            'name': '   ',
+            'display_name': '이름 대신 반환된 전체 주소, 서울',
+            'lat': '37.5',
+            'lon': '127',
+          },
+          {
+            'osm_id': 3,
+            'name': '',
+            'display_name': '',
+            'lat': '37.5',
+            'lon': '127',
+          },
+        ]);
+      }),
+      requestSpacing: Duration.zero,
+    );
+    final places = await service.search(
+      '공원',
+      GeoSample(37.5, 127, 5, DateTime.now()),
+    );
+    expect(places.map((p) => p.name), [
+      '한강 시민 공원 긴 정식 이름',
+      '이름 대신 반환된 전체 주소, 서울',
+      '이름 정보 없음',
+    ]);
+    service.close();
+  });
   test(
     'Android requests identify the app, bound nearby category searches and cache results',
     () async {

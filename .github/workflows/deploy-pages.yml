@@ -37,6 +37,9 @@ jobs:
       - name: Run all tests
         run: flutter test --concurrency=1
 
+      - name: Verify full place names in Chrome
+        run: flutter test --platform chrome test/place_name_display_test.dart
+
       - name: Build web app
         run: flutter build web --target lib/main_web.dart --release --base-href /mungcation/ --no-web-resources-cdn
 

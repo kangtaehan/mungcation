@@ -32,6 +32,11 @@ void main() {
     );
     expect(camera.onPressed == null, kIsWeb);
     if (kIsWeb) {
+      await tester.scrollUntilVisible(
+        find.text('사진 선택·촬영·픽셀 변환은 모바일 앱에서 이용해 주세요.'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('사진 선택·촬영·픽셀 변환은 모바일 앱에서 이용해 주세요.'), findsOneWidget);
     }
   });

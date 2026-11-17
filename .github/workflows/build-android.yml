@@ -51,7 +51,7 @@ jobs:
         run: flutter build web --target lib/main_web.dart --release --no-web-resources-cdn
 
       - name: Test web support in Chrome
-        run: flutter test --platform chrome test/platform_support_test.dart
+        run: flutter test --platform chrome test/platform_support_test.dart test/place_name_display_test.dart
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

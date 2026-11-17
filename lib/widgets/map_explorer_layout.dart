@@ -56,32 +56,7 @@ class _MapExplorerLayoutState extends State<MapExplorerLayout> {
         key: const ValueKey('walk-details-list'),
         controller: controller,
         padding: EdgeInsets.fromLTRB(20, mobile ? 0 : 12, 20, 28),
-        children: [
-          if (mobile)
-            Center(
-              child: IconButton(
-                tooltip: '산책 정보 펼치기',
-                onPressed: () {
-                  if (sheet.isAttached) {
-                    sheet.animateTo(
-                      .9,
-                      duration: const Duration(milliseconds: 280),
-                      curve: Curves.easeOutCubic,
-                    );
-                  }
-                },
-                icon: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: hairline,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-            ),
-          ...widget.children,
-        ],
+        children: [...widget.children],
       );
 
   @override
@@ -160,7 +135,33 @@ class _MapExplorerLayoutState extends State<MapExplorerLayout> {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(28),
                 ),
-                child: details(scroll, mobile: true),
+                child: Column(
+                  children: [
+                    Center(
+                      child: IconButton(
+                        tooltip: sheetFraction > .6 ? '산책 정보 접기' : '산책 정보 펼치기',
+                        onPressed: () {
+                          if (sheet.isAttached) {
+                            sheet.animateTo(
+                              sheetFraction > .6 ? .38 : .9,
+                              duration: const Duration(milliseconds: 280),
+                              curve: Curves.easeOutCubic,
+                            );
+                          }
+                        },
+                        icon: Container(
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: hairline,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(child: details(scroll, mobile: true)),
+                  ],
+                ),
               ),
             ),
           ),

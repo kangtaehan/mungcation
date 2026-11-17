@@ -87,51 +87,58 @@ Future<void> expectDetailsReachable(WidgetTester tester) async {
 
 void main() {
   for (final size in [const Size(320, 568), const Size(390, 844)]) {
-    testWidgets(
-      'phone $size keeps the map behind an expandable details sheet',
-      (tester) async {
-        var enteredSearch = '';
-        await mountExplorer(
-          tester,
-          size,
-          onSearch: (value) => enteredSearch = value,
-        );
+    testWidgets('phone $size keeps the map behind an expandable details sheet', (
+      tester,
+    ) async {
+      var enteredSearch = '';
+      await mountExplorer(
+        tester,
+        size,
+        onSearch: (value) => enteredSearch = value,
+      );
 
-        expect(
-          tester.getRect(find.byKey(mapKey)),
-          Rect.fromLTWH(0, 0, size.width, size.height),
-          reason: '모바일 지도는 상세 시트 뒤까지 전체 화면을 차지해야 합니다.',
-        );
-        final sheet = tester.widget<DraggableScrollableSheet>(
-          find.byType(DraggableScrollableSheet),
-        );
-        expect(sheet.initialChildSize, .38);
-        expect(sheet.minChildSize, .18);
-        expect(sheet.maxChildSize, .9);
-        await tester.enterText(find.byKey(searchKey), '서울숲');
-        expect(enteredSearch, '서울숲');
-        FocusManager.instance.primaryFocus?.unfocus();
-        await tester.pumpAndSettle();
+      expect(
+        tester.getRect(find.byKey(mapKey)),
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        reason: '모바일 지도는 상세 시트 뒤까지 전체 화면을 차지해야 합니다.',
+      );
+      final sheet = tester.widget<DraggableScrollableSheet>(
+        find.byType(DraggableScrollableSheet),
+      );
+      expect(sheet.initialChildSize, .38);
+      expect(sheet.minChildSize, .18);
+      expect(sheet.maxChildSize, .9);
+      await tester.enterText(find.byKey(searchKey), '서울숲');
+      expect(enteredSearch, '서울숲');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
 
-        final initialHeight = tester.getSize(find.byKey(detailsKey)).height;
-        final initialInset = tester
-            .widget<MapSheetInset>(find.byType(MapSheetInset))
-            .bottom;
-        await tester.tap(find.byTooltip('산책 정보 펼치기'));
-        await tester.pumpAndSettle();
-        expect(
-          tester.getSize(find.byKey(detailsKey)).height,
-          greaterThan(initialHeight),
-          reason: '펼치기 버튼으로 실제 상세 영역이 커져야 합니다.',
-        );
-        expect(
-          tester.widget<MapSheetInset>(find.byType(MapSheetInset)).bottom,
-          greaterThan(initialInset),
-          reason: 'Map attribution must follow the expanded sheet.',
-        );
-        await expectDetailsReachable(tester);
-      },
-    );
+      final initialHeight = tester.getSize(find.byKey(detailsKey)).height;
+      final initialInset = tester
+          .widget<MapSheetInset>(find.byType(MapSheetInset))
+          .bottom;
+      await tester.tap(find.byTooltip('산책 정보 펼치기'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(find.byKey(detailsKey)).height,
+        greaterThan(initialHeight),
+        reason: '펼치기 버튼으로 실제 상세 영역이 커져야 합니다.',
+      );
+      expect(
+        tester.widget<MapSheetInset>(find.byType(MapSheetInset)).bottom,
+        greaterThan(initialInset),
+        reason: 'Map attribution must follow the expanded sheet.',
+      );
+      await expectDetailsReachable(tester);
+      await tester.tap(find.byTooltip('산책 정보 접기'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(find.byKey(detailsKey)).height,
+        closeTo(initialHeight, 1),
+        reason:
+            'The handle must stay reachable and collapse the sheet after scrolling.',
+      );
+    });
   }
 
   testWidgets('small phone supports double text size without overflow', (

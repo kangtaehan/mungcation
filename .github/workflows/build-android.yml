@@ -1,6 +1,8 @@
 name: Build Android APK
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches:
       - main
@@ -10,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-apk
+  group: android-apk-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -36,11 +38,20 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Test map design
-        run: flutter test test/android_map_widget_test.dart
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run all tests
+        run: flutter test --concurrency=1
 
       - name: Build debug APK
         run: flutter build apk --debug
+
+      - name: Build web app
+        run: flutter build web --target lib/main_web.dart --release --no-web-resources-cdn
+
+      - name: Test web support in Chrome
+        run: flutter test --platform chrome test/platform_support_test.dart
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

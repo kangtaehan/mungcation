@@ -1,7 +1,8 @@
 ﻿param(
     [string]$SdkRoot = $env:ANDROID_HOME,
     [string]$WorkRoot,
-    [string]$OutputRoot
+    [string]$OutputRoot,
+    [string]$GradleCacheRoot
 )
 $ErrorActionPreference = 'Stop'
 $sourceRoot = Split-Path -Parent $PSScriptRoot
@@ -13,6 +14,7 @@ if (-not $SdkRoot) {
 if (-not (Test-Path -LiteralPath (Join-Path $SdkRoot 'platforms\android-36\android.jar'))) { throw 'Android SDK 36 is required. Install Android Studio SDK tools or run tool/install_android_sdk.ps1 after reviewing its license option.' }
 if (-not $WorkRoot) { $WorkRoot = Join-Path $SdkRoot '..\..\Builds' }
 $WorkRoot = [System.IO.Path]::GetFullPath($WorkRoot)
+if (-not $GradleCacheRoot) { $GradleCacheRoot = Join-Path $WorkRoot 'gradle-cache' }
 New-Item -ItemType Directory -Path $WorkRoot -Force | Out-Null
 $buildPath = Join-Path $WorkRoot ('mungcation-android-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $buildPath | Out-Null
@@ -29,7 +31,7 @@ try {
     $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
     $env:TEMP = $buildPath
     $env:TMP = $buildPath
-    $env:GRADLE_USER_HOME = Join-Path $WorkRoot 'gradle-cache'
+    $env:GRADLE_USER_HOME = [System.IO.Path]::GetFullPath($GradleCacheRoot)
     $env:PUB_CACHE = Join-Path $WorkRoot 'pub-cache'
     $env:DEBUG = $null
     Push-Location -LiteralPath $buildPath

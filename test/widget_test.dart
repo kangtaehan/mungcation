@@ -6,8 +6,54 @@ import 'package:mungcation/widgets/pet_room.dart';
 import 'controller_test.dart' show MemoryRepository;
 import 'walk_test.dart' show FakeLocation, makeDraft;
 import 'package:mungcation/models/walk_data.dart';
+import 'package:mungcation/features/data_tools_page.dart';
+import 'package:mungcation/services/local_repository.dart';
+
+class UnreadableRepository implements AppRepository {
+  @override
+  Future<AppData> load() async => throw const FormatException('corrupt');
+  @override
+  Future<void> save(AppData data) async {}
+}
 
 void main() {
+  testWidgets('profile opens backup tools from the application', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MungcationApp(
+        repository: MemoryRepository(
+          AppData(pet: const PetProfile(name: '몽이')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('마이').last);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('백업과 복원'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('백업과 복원'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DataToolsPage), findsOneWidget);
+    expect(find.text('백업 파일에서 복원'), findsOneWidget);
+  });
+
+  testWidgets('unreadable primary store offers backup recovery', (
+    tester,
+  ) async {
+    await tester.pumpWidget(MungcationApp(repository: UnreadableRepository()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('백업에서 복원'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DataToolsPage), findsOneWidget);
+    final restore = tester.widget<OutlinedButton>(
+      find.widgetWithText(OutlinedButton, '백업 파일에서 복원'),
+    );
+    expect(restore.onPressed, isNotNull);
+  });
   testWidgets('first launch saves a pet and opens home', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;

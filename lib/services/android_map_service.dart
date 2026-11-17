@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import '../core/korea.dart';
 import '../models/walk_data.dart';
 import 'map_service.dart';
 import 'android_map_configuration.dart';
+import 'browser_links.dart';
 
 class MapServiceFailure implements Exception {
   final String message;
@@ -234,6 +236,15 @@ class AndroidMapService implements MapService {
 
   @override
   Future<void> openPlace(PlaceInfo place) async {
+    if (kIsWeb) {
+      await openLink(
+        Uri.https('www.google.com', '/maps/search/', {
+          'api': '1',
+          'query': '${place.location.latitude},${place.location.longitude}',
+        }).toString(),
+      );
+      return;
+    }
     final opened = await androidChannel.invokeMethod<bool>(
       'openMap',
       place.toMap(),
@@ -243,6 +254,10 @@ class AndroidMapService implements MapService {
 
   static Future<void> openLink(String value) async {
     AndroidMapEndpoints.https(value);
+    if (kIsWeb) {
+      openBrowserLink(value);
+      return;
+    }
     if (await androidChannel.invokeMethod<bool>('openUrl', {'url': value}) !=
         true)
       throw const MapServiceFailure('링크를 열지 못했어요.');

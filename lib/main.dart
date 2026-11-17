@@ -12,6 +12,7 @@ import 'services/location_source.dart';
 import 'services/map_service.dart';
 import 'services/walk_session.dart';
 import 'features/account_pages.dart';
+import 'features/data_tools_page.dart';
 import 'features/places_page.dart';
 import 'features/walking_page.dart';
 import 'widgets/pet_room.dart';
@@ -39,6 +40,27 @@ class MungcationApp extends StatelessWidget {
     supportedLocales: const [Locale('ko', 'KR')],
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
     debugShowCheckedModeBanner: false,
+    builder: (context, child) => kIsWeb
+        ? Column(
+            children: [
+              const Material(
+                color: Color(0xFFFFF1C7),
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Text(
+                      '웹 체험 · 브라우저에만 저장돼요. 사진·파일·잠금 화면 기록은 모바일 앱에서 이용해 주세요.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(child: child ?? const SizedBox.shrink()),
+            ],
+          )
+        : child ?? const SizedBox.shrink(),
     theme: ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: const Color(0xFFFAF8F4),
@@ -125,6 +147,19 @@ class _ShellState extends State<Shell> {
                       onPressed: initialize,
                       child: const Text('다시 시도'),
                     ),
+                    if (!kIsWeb)
+                      OutlinedButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => DataToolsPage(
+                              controller: controller,
+                              session: walk,
+                            ),
+                          ),
+                        ),
+                        child: const Text('백업에서 복원'),
+                      ),
                   ],
                 ),
               ),
@@ -271,4 +306,3 @@ class HomePage extends StatelessWidget {
     );
   }
 }
-

@@ -1,6 +1,7 @@
 import '../services/backup_service.dart';
 import 'walk_history_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../core/ui.dart';
 import '../models/walk_data.dart';
 import '../services/app_controller.dart';
@@ -198,6 +199,7 @@ class _WalkExportButtonState extends State<WalkExportButton> {
   bool working = false;
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) return const Text('GPX 파일 내보내기는 모바일 앱에서 이용해 주세요.');
     if (widget.record.samples.isEmpty)
       return const Text(
         'GPS 경로가 없어 GPX로 내보낼 수 없어요.',

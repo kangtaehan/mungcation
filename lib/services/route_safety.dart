@@ -34,20 +34,6 @@ class RouteSafetyReport {
   };
 }
 
-const _walkFriendlyWords = <String>[
-  '보행',
-  '산책',
-  '공원',
-  '둘레길',
-  '산책로',
-  '보도',
-  'pedestrian',
-  'footway',
-  'path',
-  'trail',
-  'park',
-];
-const _crossingWords = <String>['횡단보도', 'crossing'];
 const _cautionWords = <String>['대로', '교차로', '로터리', '터널', 'bridge', 'trunk'];
 const _forbiddenWords = <String>['고속도로', '자동차전용', 'motorway', 'expressway'];
 
@@ -68,42 +54,30 @@ RouteSafetyReport assessWalkingRoute(WalkingRoute route) {
     );
   }
 
-  var friendly = 0, crossings = 0, caution = 0, forbidden = 0;
+  var caution = 0, forbidden = 0;
   for (final direction in directions) {
     if (_forbiddenWords.any(direction.contains)) forbidden++;
-    if (_walkFriendlyWords.any(direction.contains)) friendly++;
-    if (_crossingWords.any(direction.contains)) crossings++;
     if (_cautionWords.any(direction.contains)) caution++;
   }
-  final known = (friendly + crossings + caution + forbidden).clamp(
-    0,
-    directions.length,
-  );
-  final knownFraction = known / directions.length;
-  var score = 50 + friendly * 15 + crossings * 3 - caution * 12;
+  // Road names and instruction keywords are warnings, never verified
+  // sidewalk coverage. Structured provider evidence is not connected yet.
+  var score = 50 - caution * 12;
   if (forbidden > 0) score -= 70;
   score = score.clamp(0, 100).toInt();
 
   final reasons = <String>[];
   if (forbidden > 0) reasons.add('보행자가 피해야 할 도로 표현이 감지됐어요.');
-  if (friendly > 0) reasons.add('보행로·공원길 정보가 $friendly개 구간에서 확인됐어요.');
-  if (crossings > 0) reasons.add('횡단 구간 정보가 $crossings개 있어 주변을 확인해야 해요.');
   if (caution > 0) reasons.add('큰길·교차로 등 주의 표현이 $caution개 있어요.');
-  if (knownFraction < .5) reasons.add('절반 이상의 구간은 인도 정보가 확인되지 않았어요.');
-  if (reasons.isEmpty) reasons.add('인도·횡단보도 정보가 확인되지 않았어요.');
+  reasons.add('도로 이름만으로 실제 인도·횡단보도 유무를 확인할 수 없어요.');
 
   final level = forbidden > 0
       ? RouteSafetyLevel.avoid
-      : caution > friendly
+      : caution > 0
       ? RouteSafetyLevel.caution
-      : knownFraction < .25
-      ? RouteSafetyLevel.unknown
-      : score >= 75 && knownFraction >= .5
-      ? RouteSafetyLevel.preferred
-      : RouteSafetyLevel.moderate;
+      : RouteSafetyLevel.unknown;
   return RouteSafetyReport(
     score: score,
-    knownFraction: knownFraction,
+    knownFraction: 0,
     level: level,
     reasons: reasons,
   );

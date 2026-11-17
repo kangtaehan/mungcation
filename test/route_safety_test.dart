@@ -13,13 +13,12 @@ void main() {
     expect(report.label, contains('부족'));
   });
 
-  test('pedestrian evidence improves route assessment', () {
+  test('road names never confirm sidewalk safety', () {
     final report = assessWalkingRoute(
       route(['공원 산책로 · 200m 이동', '보행로 · 300m 이동']),
     );
-    expect(report.level, RouteSafetyLevel.preferred);
-    expect(report.score, greaterThanOrEqualTo(70));
-    expect(report.knownFraction, 1);
+    expect(report.level, RouteSafetyLevel.unknown);
+    expect(report.knownFraction, 0);
   });
 
   test('motorway evidence marks route to avoid', () {

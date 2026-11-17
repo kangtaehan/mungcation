@@ -43,6 +43,10 @@ class WalkingPageState extends State<WalkingPage> {
   GeoSample? nearbyCenter;
   late int nearbyMinutes;
   DateTime? lastReroute;
+  WalkNavigator? navigator;
+  GeoSample? routeOrigin;
+  bool returningHome = false;
+  bool routeIsReturnOnly = false;
   @override
   void initState() {
     super.initState();
@@ -54,6 +58,7 @@ class WalkingPageState extends State<WalkingPage> {
 
   WalkingRoute? get plannedRoute {
     if (routes.isEmpty) return null;
+    if (routeIsReturnOnly) return routes[selectedRoute];
     return roundTripRoute(
       routes[selectedRoute],
       returning:
@@ -71,14 +76,25 @@ class WalkingPageState extends State<WalkingPage> {
         loading) {
       return;
     }
-    final guidance = navigationGuidance(route, current);
+    if (distanceBetween(current, destination!.location) <= 30)
+      returningHome = true;
+    final guidance =
+        navigator?.update(current) ?? navigationGuidance(route, current);
     final now = DateTime.now();
     if (guidance.offRoute &&
         (lastReroute == null ||
             now.difference(lastReroute!) > const Duration(seconds: 45))) {
       lastReroute = now;
+      final target = destination;
+      final request = _request;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) routeTo(destination!, closeSheet: false);
+        if (mounted &&
+            target != null &&
+            destination == target &&
+            request == _request &&
+            widget.session.isRecording) {
+          routeTo(target, closeSheet: false, rerouting: true);
+        }
       });
     }
   }
@@ -209,7 +225,11 @@ class WalkingPageState extends State<WalkingPage> {
     }
   }
 
-  Future<void> routeTo(PlaceInfo place, {bool closeSheet = true}) async {
+  Future<void> routeTo(
+    PlaceInfo place, {
+    bool closeSheet = true,
+    bool rerouting = false,
+  }) async {
     if (closeSheet) Navigator.maybePop(context);
     if (!places.any((p) => p.id == place.id)) places = [place, ...places];
     if (widget.session.current == null) {
@@ -226,6 +246,12 @@ class WalkingPageState extends State<WalkingPage> {
       if (!mounted) return;
     }
     final request = ++_request;
+    if (!rerouting) {
+      routeOrigin = widget.session.current;
+      returningHome = false;
+      routeIsReturnOnly = false;
+      navigator = null;
+    }
     setState(() {
       loading = true;
       error = null;
@@ -236,23 +262,29 @@ class WalkingPageState extends State<WalkingPage> {
     });
     try {
       final start = widget.session.current!;
-      final found = await widget.maps.directions(start, place);
+      final home = PlaceInfo(
+        id: 'walk-start',
+        name: '출발 위치',
+        address: '',
+        category: 'start',
+        location: routeOrigin ?? start,
+        fetchedAt: DateTime.now(),
+        source: '기기 위치',
+      );
+      final found = await widget.maps.directions(
+        start,
+        returningHome ? home : place,
+      );
       var returning = <WalkingRoute>[];
-      if (found.isNotEmpty) {
+      if (found.isNotEmpty && !returningHome) {
         try {
-          returning = await widget.maps.directions(
-            place.location,
-            PlaceInfo(
-              id: 'walk-start',
-              name: '출발 위치',
-              address: '',
-              category: 'start',
-              location: start,
-              fetchedAt: DateTime.now(),
-              source: '기기 위치',
-            ),
-          );
+          returning = await widget.maps.directions(place.location, home);
+          if (rerouting && returning.isEmpty) {
+            throw StateError('귀환 경로를 제공하지 못했어요.');
+          }
         } catch (_) {
+          // Reversing a rerouted outward leg would return to the wrong start.
+          if (rerouting) rethrow;
           returning = [];
         }
       }
@@ -260,6 +292,11 @@ class WalkingPageState extends State<WalkingPage> {
         setState(() {
           routes = found;
           returnRoutes = returning;
+          routeIsReturnOnly = returningHome;
+          final planned = plannedRoute;
+          if (planned != null) {
+            navigator = WalkNavigator(planned, origin: routeOrigin ?? start);
+          }
           if (found.isEmpty) error = '이 지역의 도보 경로를 제공하지 못해요. 다른 목적지를 선택해 주세요.';
         });
     } catch (_) {
@@ -392,7 +429,17 @@ class WalkingPageState extends State<WalkingPage> {
     setState(() => finishing = true);
     final result = await widget.session.finish();
     if (!mounted) return;
-    setState(() => finishing = false);
+    setState(() {
+      finishing = false;
+      if (result != null) {
+        routes = [];
+        returnRoutes = [];
+        navigator = null;
+        destination = null;
+        returningHome = false;
+        routeIsReturnOnly = false;
+      }
+    });
     if (result != null)
       await Navigator.push(
         context,
@@ -417,7 +464,8 @@ class WalkingPageState extends State<WalkingPage> {
           planned = plannedRoute,
           guidance = planned == null || walk.current == null
               ? null
-              : navigationGuidance(planned, walk.current!),
+              : navigator?.update(walk.current!) ??
+                    navigationGuidance(planned, walk.current!),
           pointPlaces = places.where((place) => place.rewardEligible).toList(),
           recommendedPlaces = places
               .where((place) => !place.rewardEligible)
@@ -477,6 +525,13 @@ class WalkingPageState extends State<WalkingPage> {
                 style: const TextStyle(fontSize: 12, color: Colors.black54),
               ),
             ),
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text(
+              '주변 장소 시간은 직선거리 기반 예상값이에요. 선택 후 실제 도보 경로 시간을 확인해 주세요. 크기별 시간은 기본 필터이며 건강·나이에 맞춰 조절해 주세요.',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ),
           if (discoveredNearby && nearbyCandidates.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -640,18 +695,22 @@ class WalkingPageState extends State<WalkingPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            destination?.name ?? '선택한 산책 경로',
+                            routeIsReturnOnly
+                                ? '출발 위치로 귀환'
+                                : destination?.name ?? '선택한 산책 경로',
                             style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
                           Text(
                             '편도 ${(routes[selectedRoute].meters / 1000).toStringAsFixed(2)} km · 약 ${(routes[selectedRoute].seconds / 60).ceil()}분',
                           ),
                           Text(
-                            '왕복 ${(planned!.meters / 1000).toStringAsFixed(2)} km · 약 ${(planned.seconds / 60).ceil()}분',
+                            '${routeIsReturnOnly ? '귀환' : '왕복'} ${(planned!.meters / 1000).toStringAsFixed(2)} km · 약 ${(planned.seconds / 60).ceil()}분',
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           Text(
-                            returnRoutes.isEmpty
+                            routeIsReturnOnly
+                                ? '원래 출발 위치로 돌아가는 경로'
+                                : returnRoutes.isEmpty
                                 ? '같은 길로 돌아오는 코스'
                                 : '다른 귀환 경로를 포함한 코스',
                             style: const TextStyle(
@@ -661,7 +720,7 @@ class WalkingPageState extends State<WalkingPage> {
                           ),
                           const SizedBox(height: 5),
                           Text(
-                            '${safetyReports[selectedRoute].label} · 참고 점수 ${safetyReports[selectedRoute].score}점',
+                            safetyReports[selectedRoute].label,
                             style: TextStyle(
                               color: safetyReports[selectedRoute].color,
                               fontWeight: FontWeight.w800,
@@ -677,7 +736,13 @@ class WalkingPageState extends State<WalkingPage> {
           if (routes.isNotEmpty)
             RadioGroup<int>(
               groupValue: selectedRoute,
-              onChanged: (v) => setState(() => selectedRoute = v!),
+              onChanged: (v) => setState(() {
+                selectedRoute = v!;
+                final route = plannedRoute;
+                if (route != null && routeOrigin != null) {
+                  navigator = WalkNavigator(route, origin: routeOrigin!);
+                }
+              }),
               child: Column(
                 children: [
                   for (var i = 0; i < routes.length; i++)
@@ -687,12 +752,12 @@ class WalkingPageState extends State<WalkingPage> {
                         '${i == 0 ? '가장 빠른 제공 경로' : '대안 경로 $i'} · ${(routes[i].meters / 1000).toStringAsFixed(2)} km',
                       ),
                       subtitle: Text(
-                        '약 ${(routes[i].seconds / 60).ceil()}분 · ${safetyReports[i].label} · 확인 ${(safetyReports[i].knownFraction * 100).round()}%',
+                        '가는 길 약 ${(routes[i].seconds / 60).ceil()}분 · ${safetyReports[i].label}',
                       ),
                       secondary: CircleAvatar(
                         backgroundColor: safetyReports[i].color,
                         foregroundColor: Colors.white,
-                        child: Text('${safetyReports[i].score}'),
+                        child: const Icon(Icons.info_outline),
                       ),
                     ),
                 ],
@@ -720,7 +785,7 @@ class WalkingPageState extends State<WalkingPage> {
                   return AlertDialog(
                     title: const Text('인도 안전 정보'),
                     content: Text(
-                      '${report.label}\n참고 점수: ${report.score}점\n확인 가능한 경로 정보: ${(report.knownFraction * 100).round()}%\n\n${report.reasons.map((reason) => '• $reason').join('\n')}\n\n미확인은 인도가 없다는 뜻이 아니에요. 이 점수는 경로 안내에 포함된 도로 표현만 비교하며 실제 현장 안전을 보장하지 않아요.',
+                      '${report.label}\n\n${report.reasons.map((reason) => '• $reason').join('\n')}\n\n미확인은 인도가 없다는 뜻이 아니에요. 주의 표시는 경로 안내의 도로 표현에 따른 참고 정보이며 실제 인도와 현장 안전은 확인되지 않았어요.',
                     ),
                     actions: [
                       TextButton(
@@ -737,7 +802,7 @@ class WalkingPageState extends State<WalkingPage> {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              '초록은 안전이 보장된다는 뜻이 아니라 보행 관련 정보가 더 많이 확인된 경로예요. 지도 데이터 기반 참고 정보이며 실제 인도·공사·조명·차량 상황을 보장하지 않아요.',
+              '현재 공급자는 실제 인도·횡단보도 데이터를 제공하지 않아요. 안전 우선 경로를 보장하지 않으며 공사·조명·차량 상황을 직접 확인해 주세요.',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ),

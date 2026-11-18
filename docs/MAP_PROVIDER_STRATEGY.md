@@ -34,3 +34,15 @@
 - ROUTO 지원 범위: https://api.routo.com/docs/index.html
 
 2026-11-18 확인. 브이월드 본 사이트 일부 문서는 조회 오류가 있어 공식 교육 저장소와 공공데이터포털의 WMTS 설명을 근거로 구현한다. 실제 키·배포 도메인·웹 CORS 및 iOS/Android 키 사용 범위는 발급한 키로 별도 확인해야 한다.
+
+## 설정과 검증
+
+프로필 → 지도 서비스 설정 → 브이월드 → 인증키 입력 → 저장. 앱·웹 모두 제공한다. 저장한 설정은 해당 기기/브라우저에만 적용되며 공원 자료와 도보 서버를 변경하지 않는다. 기본 지도 선택 시 웹·Android는 OSM, iPhone은 MapKit으로 돌아간다. iPhone에서도 브이월드 또는 사용자 지정 배경을 선택하면 공통 래스터 렌더러를 사용하고 검색·도보 경로는 계속 MapKit이 제공한다. 고급 검색·OSRM 설정은 웹·Android용이다.
+
+배포 기본값은 `flutter build web --target lib/main_web.dart --release --base-href /mungcation/ --no-web-resources-cdn --dart-define=VWORLD_API_KEY=발급키`로 지정할 수 있다. 빌드 키가 없거나 형식이 잘못되면 기본 지도, 이미 저장한 사용자 선택이 있으면 그 선택을 우선한다. 웹 키는 JS 번들에 포함되므로 서버 비밀키처럼 취급하지 않고 발급 설정의 도메인 제한을 사용한다. 실제 키를 소스 파일이나 예제에 커밋하지 않는다.
+
+GitHub Pages 자동 배포는 저장소 Actions 변수 `VWORLD_API_KEY`가 있으면 같은 빌드 설정으로 전달한다. 키가 없는 배포도 작동한다. 현재 공개 웹 주소는 `https://kangtaehan.github.io/mungcation/`이며 해당 서비스 주소에 맞는 발급 설정이 필요하다. 등록 URL·허용 호출 범위는 발급 화면에서 확인한다.
+
+국내 경로 비교는 앱과 분리한 `tool/compare_walking_routes.py`로 실행한다. `TMAP_APP_KEY` 환경변수에 본인의 키를 설정하고 `python tool/compare_walking_routes.py --start 위도 경도 --end 위도 경도`를 실행한다. 기존 OSRM과 TMAP 보행자 API에 같은 좌표를 요청하고 거리·시간·출발점/종점 오차만 출력한다. 형상·주소·키를 보고서에 쓰지 않으며 자동으로 우승 제공자를 선택하지 않는다. 키가 없으면 TMAP 비교를 생략했다고 명시하고 불완전한 비교에는 실패 종료 코드를 반환한다. 결과물의 저장·이용 기간은 각 제공자 약관을 따른다.
+
+발급키가 없는 상태에서는 브이월드 실제 타일과 TMAP 실제 경로의 비교가 끝났다고 보고하지 않는다. 현재 검증 범위는 키·URL·좌표 순서, 기존 설정 호환, 지도 전환·오류 복구·출처 표시, 원본 경로 보존, 응답 형식 검증과 자동 테스트다.

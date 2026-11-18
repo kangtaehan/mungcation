@@ -11,6 +11,31 @@ class AndroidMapEndpoints {
     this.attribution = '© OpenStreetMap contributors',
     this.attributionUrl = 'https://www.openstreetmap.org/copyright',
   });
+
+  bool get isVWorld {
+    final host = Uri.tryParse(tiles)?.host ?? '';
+    return host == 'vworld.kr' || host.endsWith('.vworld.kr');
+  }
+
+  bool get cacheTilesOnDisk => !isVWorld;
+
+  /// WMTS uses zoom/row/column, unlike the OSM zoom/column/row URL.
+  /// Source: V-world/V-world_API_sample, 2026 education README.
+  AndroidMapEndpoints withVWorld(String key) {
+    key = key.trim();
+    if (!RegExp(r'^[A-Za-z0-9-]{10,128}$').hasMatch(key))
+      throw const FormatException('발급받은 브이월드 인증키를 확인해 주세요.');
+    return AndroidMapEndpoints(
+      tiles: 'https://api.vworld.kr/req/wmts/1.0.0/$key/Base/{z}/{y}/{x}.png',
+      attribution: '공간정보 오픈플랫폼(브이월드)',
+      attributionUrl: 'https://www.vworld.kr/',
+      search: search,
+      routing: routing,
+    );
+  }
+
+  AndroidMapEndpoints withOpenStreetMap() =>
+      AndroidMapEndpoints(search: search, routing: routing);
   static void https(String value) {
     final uri = Uri.tryParse(value);
     if (uri == null ||
@@ -85,8 +110,18 @@ class PreferencesMapSettings implements MapSettingsStore {
 class AndroidMapConfiguration extends ChangeNotifier {
   static final instance = AndroidMapConfiguration();
   final MapSettingsStore store;
-  AndroidMapConfiguration({MapSettingsStore? store})
-    : store = store ?? PreferencesMapSettings();
+  AndroidMapConfiguration({
+    MapSettingsStore? store,
+    String vworldKey = const String.fromEnvironment('VWORLD_API_KEY'),
+  }) : store = store ?? PreferencesMapSettings() {
+    if (vworldKey.trim().isNotEmpty) {
+      try {
+        value = value.withVWorld(vworldKey);
+      } on FormatException {
+        error = '브이월드 인증키 설정을 확인하지 못해 기본 지도를 사용해요.';
+      }
+    }
+  }
   AndroidMapEndpoints value = const AndroidMapEndpoints();
   String? error;
   Future<void> load() async {

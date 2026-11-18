@@ -46,11 +46,19 @@ jobs:
       - name: Run all tests
         run: flutter test --concurrency=1
 
+      - name: Serve current park asset to browser tests
+        run: |
+          mkdir -p test/fixtures
+          cp assets/data/national_parks.json test/fixtures/national_parks.json
+
       - name: Verify map layout and full place names in Chrome
         run: flutter test --platform chrome test/place_name_display_test.dart test/map_explorer_layout_test.dart test/map_location_entry_test.dart test/national_park_catalog_test.dart
 
       - name: Build web app
         run: flutter build web --target lib/main_web.dart --release --base-href /mungcation/ --no-web-resources-cdn
+
+      - name: Verify deployed park asset matches the tested snapshot
+        run: cmp assets/data/national_parks.json build/web/assets/assets/data/national_parks.json
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

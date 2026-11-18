@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mungcation/models/walk_data.dart';
 import 'package:mungcation/services/national_park_catalog.dart';
@@ -116,10 +118,19 @@ void main() {
     (tester) async {
       final raw =
           jsonDecode(
-                (await tester.runAsync(
-                  () =>
-                      rootBundle.loadString('assets/data/national_parks.json'),
-                ))!,
+                (await tester.runAsync(() async {
+                  if (!kIsWeb)
+                    return rootBundle.loadString(
+                      'assets/data/national_parks.json',
+                    );
+                  // Flutter #159879: web widget tests discard asset platform messages.
+                  // CI serves an exact copy of the current asset through its test server.
+                  final response = await http.get(
+                    Uri.base.resolve('/fixtures/national_parks.json'),
+                  );
+                  expect(response.statusCode, 200);
+                  return utf8.decode(response.bodyBytes);
+                }))!,
               )
               as Map<String, dynamic>;
       final rows = raw['parks'] as List;

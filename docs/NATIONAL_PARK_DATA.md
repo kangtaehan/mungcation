@@ -37,3 +37,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tool/test_windows.ps1
 공원만 찾을 때는 현재 위치 8km 내 후보 최대 60개를 거리순으로 조회하고, 기존 반려견별 산책 시간 필터를 적용한다. 지역·공원 이름 검색은 전국을 대상으로 한다. ‘서울 공원’, ‘제주 공원’ 같은 지역 검색을 지원한다. 공원 이름을 검색할 때 같은 단어가 들어간 도로 이름을 잘라 다른 공원명으로 간주하지 않는다. 카페·식당·동물병원과 경로 계산은 기존 공급자를 사용한다. 기존 기록·즐겨찾기의 이름을 좌표 근접만으로 다른 공원명으로 바꾸지 않으며, 공원명이 동·주소·미확인 이름이면 ‘공원명 확인 필요’로 표시한다.
 
 사용 Agent Skills: source-driven-development, planning-and-task-breakdown, incremental-implementation, test-driven-development, debugging-and-error-recovery, git-workflow-and-versioning, code-review-and-quality, shipping-and-launch.
+
+## 브라우저 검증
+
+Flutter 웹 위젯 테스트에서 `rootBundle`을 읽으면 플랫폼 메시지 응답이 오지 않는 [Flutter #159879](https://github.com/flutter/flutter/issues/159879)가 있다. Chrome에서는 현재 공원 에셋을 테스트 서버에 그대로 복사해 HTTP로 읽고 동일한 전국 분포·이름·좌표·중복 검사를 실행한다. 네이티브 테스트는 실제 번들을 읽는다. 웹 빌드 후 `cmp`로 실제 배포 에셋과 검사 원본이 완전히 같은지도 검증한다. 검사를 건너뛰거나 타임아웃을 늘려 통과시키지 않는다.

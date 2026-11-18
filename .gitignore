@@ -68,3 +68,4 @@ artifacts/android/*.aab
 !.env.example
 key.properties
 local.properties
+test/fixtures/national_parks.json

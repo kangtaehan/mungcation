@@ -19,6 +19,8 @@ try {
         flutter pub get
         if ($LASTEXITCODE -ne 0) { throw 'Flutter dependency resolution failed.' }
         if ($Browser) {
+            New-Item -ItemType Directory -Path (Join-Path $workPath 'test/fixtures') -Force | Out-Null
+            Copy-Item -LiteralPath (Join-Path $workPath 'assets/data/national_parks.json') -Destination (Join-Path $workPath 'test/fixtures/national_parks.json')
             if (-not $env:CHROME_EXECUTABLE) {
                 $edge = Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe'
                 if (Test-Path -LiteralPath $edge) { $env:CHROME_EXECUTABLE = $edge }

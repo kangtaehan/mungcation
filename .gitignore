@@ -69,3 +69,5 @@ artifacts/android/*.aab
 key.properties
 local.properties
 test/fixtures/national_parks.json
+test/fixtures/pet_places.json
+test/fixtures/pet_food_registry.json

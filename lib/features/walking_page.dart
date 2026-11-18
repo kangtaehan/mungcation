@@ -194,10 +194,20 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
       }
       // Show the location immediately; nearby searches may take longer.
       setState(() => centerRequest++);
+      var unavailableSources = 0;
+      Future<List<PlaceInfo>> nearbySearch(String query) async {
+        try {
+          return await widget.maps.search(query, center);
+        } catch (_) {
+          unavailableSources++;
+          return [];
+        }
+      }
+
       final results = await Future.wait([
-        widget.maps.search('공원', center),
-        widget.maps.search('애견 카페', center),
-        widget.maps.search('동물병원', center),
+        nearbySearch('공원'),
+        nearbySearch('반려동물 동반 식당'),
+        nearbySearch('반려동물 동반'),
       ]);
       final unique = <String, PlaceInfo>{};
       for (final place in results.expand((items) => items)) {
@@ -215,11 +225,17 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
           nearbyCenter = center;
           nearbyMinutes = selection.targetMinutes;
           places = selection.places;
-          discoveredNearby = true;
+          discoveredNearby = unique.isNotEmpty || unavailableSources == 0;
           nearbySummary = selection.usedFallback
               ? '$dogSize 권장 왕복 ${selection.targetMinutes}분 이내 장소가 없어 가장 가까운 후보를 보여드려요.'
               : '$dogSize 기준 예상 왕복 ${selection.targetMinutes}분 이내 장소를 가까운 순서로 보여드려요.';
-          if (places.isEmpty) error = '권장 산책 시간에 맞는 주변 장소를 찾지 못했어요.';
+          if (unavailableSources > 0) {
+            error = places.isEmpty
+                ? '주변 장소를 조회하지 못했어요. 내 주변을 눌러 다시 시도해 주세요.'
+                : '일부 장소 조회를 완료하지 못해 확인된 자료만 표시해요.';
+          } else if (places.isEmpty) {
+            error = '권장 산책 시간에 맞는 주변 장소를 찾지 못했어요.';
+          }
         });
         widget.session.places = places;
       }
@@ -390,19 +406,22 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
               color: Colors.white,
               child: ListTile(
                 contentPadding: const EdgeInsets.all(12),
-                leading: Icon(
-                  place.rewardEligible ? Icons.park : Icons.pets,
-                  color: forest,
-                ),
+                leading: Icon(placeCategoryIcon(place.category), color: forest),
                 title: Text(
                   place.displayName,
                   softWrap: true,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
-                  widget.session.current == null
-                      ? place.category
-                      : '예상 왕복 ${estimatedRoundTripMinutes(widget.session.current!, place).ceil()}분',
+                  [
+                    if (place.admission != null) place.admission!.label,
+                    if (place.admission?.hasTransportInfo == true)
+                      '유모차·이동장 관련 조건 있음',
+                    if (widget.session.current == null)
+                      place.category
+                    else
+                      '예상 왕복 ${estimatedRoundTripMinutes(widget.session.current!, place).ceil()}분',
+                  ].join('\n'),
                   softWrap: true,
                 ),
                 onTap: () => showPlace(place),
@@ -463,8 +482,12 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
                 },
         ),
         for (final entry in const {
+          '동반 가능': Icons.pets_outlined,
           '공원': Icons.park_outlined,
+          '음식점': Icons.restaurant_outlined,
           '카페': Icons.local_cafe_outlined,
+          '공공·문화': Icons.account_balance_outlined,
+          '마트·쇼핑': Icons.shopping_cart_outlined,
           '동물병원': Icons.local_hospital_outlined,
         }.entries) ...[
           const SizedBox(width: 8),
@@ -474,7 +497,14 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
             onPressed: loading
                 ? null
                 : () async {
-                    query.text = entry.key;
+                    query.text = switch (entry.key) {
+                      '동반 가능' => '반려동물 동반',
+                      '음식점' => '반려동물 동반 식당',
+                      '카페' => '반려동물 동반 카페',
+                      '공공·문화' => '반려동물 동반 공공시설',
+                      '마트·쇼핑' => '반려동물 동반 마트',
+                      _ => entry.key,
+                    };
                     if (widget.session.current == null &&
                         !await widget.session.locate())
                       return;

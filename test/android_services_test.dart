@@ -150,6 +150,37 @@ void main() {
     service.close();
   });
   test(
+    'food registration matching receives structured street and building identity',
+    () async {
+      final service = AndroidMapService(
+        configuration: AndroidMapConfiguration(store: MemoryMapSettings()),
+        requestSpacing: Duration.zero,
+        client: MockClient(
+          (_) async => jsonResponse([
+            {
+              'osm_id': 42,
+              'name': '등록 카페 성수점',
+              'display_name': '서울특별시 성동구 왕십리로 10',
+              'class': 'amenity',
+              'type': 'cafe',
+              'lat': '37.5',
+              'lon': '127',
+              'address': {'road': '왕십리로', 'house_number': '10'},
+            },
+          ]),
+        ),
+      );
+      final place = (await service.search(
+        '카페',
+        GeoSample(37.5, 127, 5, DateTime.now()),
+      )).single;
+      expect(place.roadName, '왕십리로');
+      expect(place.buildingNumber, '10');
+      expect(place.category, 'cafe');
+      service.close();
+    },
+  );
+  test(
     'category searches exclude administrative areas even when they have names',
     () async {
       final service = AndroidMapService(

@@ -22,6 +22,11 @@ class PetPlaceImportTest(unittest.TestCase):
         rows, _ = normalize_culture([self.row(**{'반려동물 동반 가능정보': 'N'})])
         self.assertEqual(rows[0]['admission']['status'], 'notAllowed')
 
+    def test_area_rule_preserves_scope_and_negation(self):
+        condition = '야외만 가능한 것은 아니며 실내는 케이지 이용 시 허용'
+        rows, _ = normalize_culture([self.row(**{'반려동물 제한사항': condition})])
+        self.assertEqual(rows[0]['admission']['areaRule'], condition)
+
     def test_invalid_coordinates_and_unrequested_businesses_are_excluded(self):
         rows, _ = normalize_culture([
             self.row(**{'위도': ''}), self.row(**{'경도': '1270'}),

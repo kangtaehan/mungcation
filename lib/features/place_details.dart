@@ -5,6 +5,7 @@ import '../models/saved_place.dart';
 import '../models/walk_data.dart';
 import '../services/app_controller.dart';
 import '../services/map_service.dart';
+import '../widgets/pet_admission_panel.dart';
 
 class PlaceDetails extends StatelessWidget {
   final PlaceInfo place;
@@ -37,14 +38,14 @@ class PlaceDetails extends StatelessWidget {
               const SizedBox(height: 12),
               Text(place.address.isEmpty ? '주소 정보 없음' : place.address),
               Text('전화: ${place.phone.isEmpty ? '정보 없음' : place.phone}'),
-              const Text('영업시간: 매장 확인 필요'),
-              const Divider(),
-              const Text(
-                '반려견 동반 여부: 매장 확인 필요\n실내·실외 동반: 매장 확인 필요\n목줄·케이지·유모차 필요 여부: 매장 확인 필요\n케이지·유모차 대여: 매장 확인 필요\n크기·몸무게 제한: 매장 확인 필요\n반려견 전용 메뉴·가격: 정보 없음',
+              Text(
+                '영업시간: ${place.admission?.openingHours.isNotEmpty == true ? '${place.admission!.openingHours} (자료 기준)' : '매장 확인 필요'}',
               ),
+              const Divider(),
+              PetAdmissionPanel(policy: place.admission),
               const SizedBox(height: 12),
               Text(
-                '출처: ${place.source}\n검색 시각: ${dateLabel(place.fetchedAt.toLocal())}\n동반 조건의 최종 확인: 미확인',
+                '장소 출처: ${place.source}\n검색 시각: ${dateLabel(place.fetchedAt.toLocal())}',
               ),
               if (place.referenceDate case final reference?)
                 Text(

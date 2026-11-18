@@ -452,9 +452,28 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
   );
 }
 
-enum PixelPlaceKind { park, cafe, hospital, stay, restaurant, pet }
+enum PixelPlaceKind {
+  park,
+  cafe,
+  hospital,
+  stay,
+  restaurant,
+  civic,
+  shopping,
+  pet,
+}
 
 PixelPlaceKind pixelPlaceKind(PlaceInfo place) {
+  final explicit = switch (place.category) {
+    'park' => PixelPlaceKind.park,
+    'cafe' => PixelPlaceKind.cafe,
+    'restaurant' => PixelPlaceKind.restaurant,
+    'civic' => PixelPlaceKind.civic,
+    'shopping' => PixelPlaceKind.shopping,
+    'hospital' => PixelPlaceKind.hospital,
+    _ => null,
+  };
+  if (explicit != null) return explicit;
   final value = '${place.category} ${place.displayName}'.toLowerCase();
   if (place.rewardEligible || value.contains('공원') || value.contains('park')) {
     return PixelPlaceKind.park;
@@ -526,14 +545,16 @@ class PixelPlaceMarker extends StatelessWidget {
       return height;
     }
 
+    final detail = place.mapSubtitle(subtitle);
     return measure(labelFor(place), nameStyle) +
-        (subtitle == null ? 0 : measure(subtitle, subtitleStyle)) +
+        (detail == null ? 0 : measure(detail, subtitleStyle)) +
         45;
   }
 
   @override
   Widget build(BuildContext context) {
     final kind = pixelPlaceKind(place);
+    final detail = place.mapSubtitle(subtitle);
     final (icon, color) = switch (kind) {
       PixelPlaceKind.park => (Icons.park, const Color(0xFF28734E)),
       PixelPlaceKind.cafe => (Icons.local_cafe, const Color(0xFFB8794E)),
@@ -543,6 +564,14 @@ class PixelPlaceMarker extends StatelessWidget {
       ),
       PixelPlaceKind.stay => (Icons.bed, const Color(0xFF6B6FA9)),
       PixelPlaceKind.restaurant => (Icons.restaurant, const Color(0xFFD8893B)),
+      PixelPlaceKind.civic => (
+        Icons.account_balance_outlined,
+        const Color(0xFF6B6FA9),
+      ),
+      PixelPlaceKind.shopping => (
+        Icons.shopping_cart_outlined,
+        const Color(0xFF9A6848),
+      ),
       PixelPlaceKind.pet => (Icons.pets, forest),
     };
     return Column(
@@ -572,9 +601,9 @@ class PixelPlaceMarker extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: nameStyle.copyWith(color: color),
               ),
-              if (subtitle != null)
+              if (detail != null)
                 Text(
-                  subtitle!,
+                  detail,
                   softWrap: true,
                   textAlign: TextAlign.center,
                   style: subtitleStyle,

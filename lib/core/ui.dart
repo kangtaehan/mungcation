@@ -3,6 +3,17 @@ import 'package:flutter/material.dart';
 const forest = Color(0xFF205C40),
     beige = Color(0xFFF5EBDD),
     ink = Color(0xFF252525);
+
+IconData placeCategoryIcon(String category) => switch (category) {
+  'park' => Icons.park_outlined,
+  'cafe' => Icons.local_cafe_outlined,
+  'restaurant' => Icons.restaurant_outlined,
+  'civic' => Icons.account_balance_outlined,
+  'shopping' => Icons.shopping_cart_outlined,
+  'stay' => Icons.bed_outlined,
+  'hospital' => Icons.local_hospital_outlined,
+  _ => Icons.pets_outlined,
+};
 const paper = Color(0xFFFFFEFB),
     canvas = Color(0xFFF6F8F5),
     mist = Color(0xFFEDF4EC),

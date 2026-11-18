@@ -25,3 +25,5 @@ flutter:
   assets:
     - assets/images/pixel_room.png
     - assets/data/national_parks.json
+    - assets/data/pet_places.json
+    - assets/data/pet_food_registry.json

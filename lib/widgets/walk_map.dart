@@ -65,7 +65,8 @@ class _WalkMapState extends State<WalkMap> {
           .map(
             (place) => {
               ...place.toMap(),
-              if (widget.placeLabels[place.id] case final label?)
+              if (place.mapSubtitle(widget.placeLabels[place.id])
+                  case final label?)
                 'subtitle': label,
             },
           )

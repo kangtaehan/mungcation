@@ -14,7 +14,7 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 CULTURE_URL = 'https://www.data.go.kr/data/15111389/fileData.do'
 FOOD_URL = 'https://www.foodsafetykorea.go.kr/portal/petKorea.do'
-CATEGORIES = {'카페': 'cafe', '식당': 'restaurant', '미술관': 'civic', '박물관': 'civic', '문예회관': 'civic', '여행지': 'civic'}
+CATEGORIES = {'카페': 'cafe', '식당': 'restaurant', '미술관': 'civic', '박물관': 'civic', '문예회관': 'civic', '여행지': 'civic', '호텔': 'stay', '펜션': 'stay'}
 MISSING = {'', '정보없음', '해당없음', '알수없음', '-'}
 ROAD = re.compile(r'([가-힣A-Za-z0-9·]+(?:대로|로|길))\s+(\d+(?:-\d+)?)')
 
@@ -57,7 +57,7 @@ def normalize_culture(records):
         road = ROAD.search(address)
         policy = dict(status=status, conditions=conditions, sizeRule=size,
                       transportRule=conditions if re.search(r'유모차|케이지|캐리어|이동장|켄넬|캔넬|백팩|가방', conditions) else '',
-                      areaRule='야외만 동반 가능' if re.search(r'(야외|실외)만', conditions) else '',
+                      areaRule=conditions if re.search(r'실내|실외|야외|구역|공용부', conditions) else '',
                       rentalRule='', fees=text(row, '애견 동반 추가 요금'),
                       openingHours=text(row, '운영시간'), sourceName='한국문화정보원 · 반려동물 동반 가능 문화시설',
                       sourceUrl=CULTURE_URL, referenceDate=reference,
@@ -85,7 +85,9 @@ def normalize_food(records):
         if not (name and address and road):
             continue
         key = identity('pet-food-', name, address)
-        result[key] = dict(id=key, name=name, address=address, region=text(row, 'lgaldngNm'), road=road[1], number=road[2])
+        locality = next((part for part in address.split()[:3]
+                         if part.endswith(('시', '군', '구')) and not part.endswith(('특별시', '광역시', '특별자치시'))), '')
+        result[key] = dict(id=key, name=name, address=address, region=text(row, 'lgaldngNm'), locality=locality, road=road[1], number=road[2])
     return sorted(result.values(), key=lambda place: place['id']), dict(sourceRows=len(records), accepted=len(result))
 
 

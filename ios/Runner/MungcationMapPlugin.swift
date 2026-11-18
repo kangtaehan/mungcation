@@ -58,7 +58,14 @@ final class MungcationMapPlugin: NSObject, FlutterPlugin {
           let rawName = item.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
           let address = item.placemark.title ?? ""
           let name = rawName.isEmpty ? (address.isEmpty ? "이름 정보 없음" : address) : rawName
-          return ["id": identifier, "name": name, "address": address, "lat": c.latitude, "lon": c.longitude, "phone": item.phoneNumber ?? "", "url": item.url?.absoluteString ?? "", "category": item.pointOfInterestCategory == .park ? "park" : "unknown"]
+          let category: String
+          if item.pointOfInterestCategory == .park { category = "park" }
+          else if item.pointOfInterestCategory == .cafe { category = "cafe" }
+          else if item.pointOfInterestCategory == .restaurant { category = "restaurant" }
+          else if item.pointOfInterestCategory == .store || item.pointOfInterestCategory == .foodMarket { category = "shopping" }
+          else if item.pointOfInterestCategory == .hotel { category = "stay" }
+          else { category = "unknown" }
+          return ["id": identifier, "name": name, "address": address, "roadName": item.placemark.thoroughfare ?? "", "buildingNumber": item.placemark.subThoroughfare ?? "", "lat": c.latitude, "lon": c.longitude, "phone": item.phoneNumber ?? "", "url": item.url?.absoluteString ?? "", "category": category]
         })
       }
     case "directions":
@@ -84,6 +91,9 @@ final class MungcationMapPlugin: NSObject, FlutterPlugin {
           return ["name": route.name, "meters": route.distance, "seconds": route.expectedTravelTime, "coordinates": points.map { ["lat": $0.latitude, "lon": $0.longitude] }, "instructions": route.steps.map { $0.instructions }.filter { !$0.isEmpty }]
         })
       }
+    case "openUrl":
+      guard let raw = args["url"] as? String, let url = URL(string: raw), url.scheme == "https", let host = url.host, !host.isEmpty, url.user == nil, url.password == nil else { result(false); return }
+      UIApplication.shared.open(url, options: [:]) { opened in result(opened) }
     case "openPlace":
       guard let lat = args["lat"] as? Double, let lon = args["lon"] as? Double, CLLocationCoordinate2DIsValid(CLLocationCoordinate2D(latitude: lat, longitude: lon)) else { result(false); return }
       let item = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)))
@@ -106,6 +116,7 @@ final class PetAnnotation: MKPointAnnotation {
   var kind = "place"
   var identifier = ""
   var points = 0
+  var category = ""
 }
 final class PetMap: NSObject, FlutterPlatformView, MKMapViewDelegate {
   private let map: MKMapView
@@ -149,7 +160,7 @@ final class PetMap: NSObject, FlutterPlatformView, MKMapViewDelegate {
     if route.count > 1 { let line = MKPolyline(coordinates: route, count: route.count); line.title = "route"; map.addOverlay(line) }
     for place in args["places"] as? [[String: Any]] ?? [] {
       guard let lat = place["lat"] as? Double, let lon = place["lon"] as? Double else { continue }
-      let annotation = PetAnnotation(); annotation.coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon); annotation.title = place["name"] as? String; annotation.identifier = place["id"] as? String ?? ""; annotation.points = place["points"] as? Int ?? 0; map.addAnnotation(annotation)
+      let annotation = PetAnnotation(); annotation.coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon); annotation.title = place["name"] as? String; annotation.subtitle = place["subtitle"] as? String; annotation.category = place["category"] as? String ?? ""; annotation.identifier = place["id"] as? String ?? ""; annotation.points = place["points"] as? Int ?? 0; map.addAnnotation(annotation)
     }
     for c in coordinates(args["footprints"]) { let mark = PetAnnotation(); mark.coordinate = c; mark.kind = "paw"; map.addAnnotation(mark) }
     if let current = args["current"] as? [String: Any], let lat = current["lat"] as? Double, let lon = current["lon"] as? Double {
@@ -179,7 +190,7 @@ final class PetMap: NSObject, FlutterPlatformView, MKMapViewDelegate {
     if pin.kind == "place" {
       let view = MKAnnotationView(annotation: pin, reuseIdentifier: nil)
       let name = UILabel()
-      name.text = pin.title
+      name.text = [pin.title, pin.subtitle].compactMap { $0 }.joined(separator: "\n")
       name.numberOfLines = 0
       name.lineBreakMode = .byWordWrapping
       name.font = .preferredFont(forTextStyle: .caption1)
@@ -193,7 +204,8 @@ final class PetMap: NSObject, FlutterPlatformView, MKMapViewDelegate {
       let size = name.sizeThatFits(CGSize(width: width - 12, height: .greatestFiniteMagnitude))
       name.frame = CGRect(x: 6, y: 4, width: width - 12, height: ceil(size.height) + 4)
       let glyph = UILabel(frame: CGRect(x: 0, y: name.frame.maxY + 3, width: width, height: 28))
-      glyph.text = pin.points > 0 ? "🌳 +\(pin.points)P" : "📍"
+      let symbols = ["cafe": "☕", "restaurant": "🍽", "shopping": "🛒", "civic": "🏛"]
+      glyph.text = pin.points > 0 ? "🌳 +\(pin.points)P" : (symbols[pin.category] ?? "📍")
       glyph.textAlignment = .center
       view.frame = CGRect(x: 0, y: 0, width: width, height: glyph.frame.maxY)
       view.addSubview(name)
@@ -203,7 +215,7 @@ final class PetMap: NSObject, FlutterPlatformView, MKMapViewDelegate {
       view.displayPriority = .required
       view.rightCalloutAccessoryView = UIButton(type: .detailDisclosure)
       let fullName = UILabel()
-      fullName.text = pin.title
+      fullName.text = name.text
       fullName.numberOfLines = 0
       fullName.font = .preferredFont(forTextStyle: .body)
       fullName.widthAnchor.constraint(lessThanOrEqualToConstant: 240).isActive = true

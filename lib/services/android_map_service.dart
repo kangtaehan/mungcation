@@ -149,6 +149,20 @@ class AndroidMapService implements MapService {
           final tags = Map<String, dynamic>.from(e['extratags'] as Map? ?? {}),
               address = '${e['display_name'] ?? ''}';
           final park = e['class'] == 'leisure' && e['type'] == 'park';
+          final addressParts = Map<String, dynamic>.from(
+            e['address'] as Map? ?? {},
+          );
+          final placeCategory = park
+              ? 'park'
+              : switch ((e['class'], e['type'])) {
+                  ('amenity', 'cafe') => 'cafe',
+                  ('amenity', 'restaurant') => 'restaurant',
+                  ('amenity', 'veterinary') => 'hospital',
+                  ('shop', 'supermarket') => 'shopping',
+                  ('amenity', 'library' || 'townhall' || 'community_centre') ||
+                  ('tourism', 'museum') => 'civic',
+                  _ => 'unknown',
+                };
           final names = Map<String, dynamic>.from(
             e['namedetails'] as Map? ?? {},
           );
@@ -163,7 +177,9 @@ class AndroidMapService implements MapService {
             id: 'osm-${e['osm_type'] ?? 'place'}-${e['osm_id'] ?? e['place_id']}',
             name: name,
             address: address,
-            category: park ? 'park' : 'unknown',
+            category: placeCategory,
+            roadName: '${addressParts['road'] ?? ''}',
+            buildingNumber: '${addressParts['house_number'] ?? ''}',
             location: location,
             fetchedAt: now(),
             phone: '${tags['phone'] ?? tags['contact:phone'] ?? ''}',

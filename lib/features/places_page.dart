@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/ui.dart';
 import '../models/walk_data.dart';
 import '../services/map_service.dart';
+import '../services/android_map_service.dart' show MapServiceFailure;
 import '../services/walk_session.dart';
 import 'place_details.dart';
 import '../services/app_controller.dart';
@@ -28,6 +29,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
   final query = TextEditingController();
   String category = '전체';
   bool loading = false, searched = false, savedOnly = false;
+  bool onlyAllowed = true;
   int serial = 0;
   String? error;
   List<PlaceInfo> places = [];
@@ -47,13 +49,25 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
       '공원' => '공원',
       '놀이터' => '반려견 놀이터',
       '동물병원' => '동물병원',
-      _ => '반려동물 동반 $category',
+      '공공·문화' => '공공시설',
+      '마트·쇼핑' => '마트',
+      _ => category,
     };
     final term = [
       query.text.trim(),
       suffix,
     ].where((v) => v.isNotEmpty).join(' ');
-    final effectiveTerm = term.isEmpty ? '반려동물 동반' : term;
+    if (!onlyAllowed && term.isEmpty) {
+      setState(() => error = '일반 검색은 지역·시설 이름이나 종류를 선택해 주세요.');
+      return;
+    }
+    final effectiveTerm = onlyAllowed
+        ? [
+            query.text.trim(),
+            '반려동물 동반',
+            suffix,
+          ].where((value) => value.isNotEmpty).join(' ')
+        : term;
     final request = ++serial;
     setState(() {
       loading = true;
@@ -61,6 +75,17 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
       searched = true;
     });
     try {
+      if (widget.session.current == null && query.text.trim().isEmpty) {
+        if (!await widget.session.locate()) {
+          if (mounted)
+            setState(
+              () => error =
+                  widget.session.error ?? '현재 위치를 확인하거나 지역을 함께 입력해 주세요.',
+            );
+          return;
+        }
+      }
+      if (!mounted || request != serial) return;
       final results = await widget.maps.search(
         effectiveTerm,
         widget.session.current,
@@ -69,9 +94,13 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
         setState(() => places = results);
         widget.session.places = results;
       }
-    } catch (_) {
+    } catch (failure) {
       if (mounted && request == serial)
-        setState(() => error = '장소 검색을 완료하지 못했어요. 기기의 네트워크와 지도 서비스를 확인해 주세요.');
+        setState(
+          () => error = failure is MapServiceFailure
+              ? failure.message
+              : '장소 검색을 완료하지 못했어요. 기기의 네트워크와 지도 서비스를 확인해 주세요.',
+        );
     } finally {
       if (mounted && request == serial) setState(() => loading = false);
     }
@@ -101,7 +130,9 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
           ),
           Text('동반 장소 찾기', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
-          const Text('실제 검색 결과예요. 반려견 동반 조건은 각 장소에 직접 확인해 주세요.'),
+          const Text(
+            '공개 자료의 동반 가능 여부와 입장 조건을 보여드려요. 기준일과 지점별 최신 규정은 방문 전 확인해 주세요.',
+          ),
           const SizedBox(height: 12),
           SegmentedButton<bool>(
             segments: const [
@@ -138,17 +169,47 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
             ),
           ),
           if (!savedOnly)
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('동반 가능 자료가 있는 곳만'),
+              subtitle: const Text('일반 검색 결과와 개인 메모는 동반 가능의 근거로 사용하지 않아요.'),
+              value: onlyAllowed,
+              onChanged: loading
+                  ? null
+                  : (value) {
+                      setState(() => onlyAllowed = value);
+                      if (query.text.trim().isNotEmpty ||
+                          category != '전체' ||
+                          value)
+                        search();
+                    },
+            ),
+          if (!savedOnly)
             Wrap(
               spacing: 8,
               children: [
-                for (final c in ['전체', '카페', '식당', '숙소', '공원', '놀이터', '동물병원'])
+                for (final c in [
+                  '전체',
+                  '카페',
+                  '식당',
+                  '공공·문화',
+                  '마트·쇼핑',
+                  '숙소',
+                  '공원',
+                  '놀이터',
+                  '동물병원',
+                ])
                   ChoiceChip(
                     label: Text(c),
                     selected: category == c,
                     onSelected: loading
                         ? null
                         : (_) {
-                            setState(() => category = c);
+                            setState(() {
+                              category = c;
+                              if (c == '동물병원' || c == '놀이터')
+                                onlyAllowed = false;
+                            });
                             search();
                           },
                   ),
@@ -195,18 +256,20 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
               places.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
-              child: Text('검색 결과가 없어요. 지역이나 검색어를 바꿔 보세요.'),
+              child: Text(
+                '해당 조건의 공개 자료를 찾지 못했어요. 자료에 없다는 것이 동반 불가를 뜻하지는 않아요. 지역·시설 이름을 바꾸거나 일반 검색을 이용해 주세요.',
+              ),
             ),
           for (final place in visible)
             Card(
               color: beige,
               elevation: 0,
               child: ListTile(
-                leading: Icon(
-                  place.rewardEligible ? Icons.park : Icons.storefront_outlined,
-                ),
+                leading: Icon(placeCategoryIcon(place.category)),
                 title: Text(place.displayName),
-                subtitle: Text('${place.address}\n반려견 동반: 확인 필요'),
+                subtitle: Text(
+                  '${place.address}\n${place.admission?.label ?? '동반 여부 미확인'}${place.admission?.hasTransportInfo == true ? '\n유모차·이동장 관련 조건 있음' : ''}',
+                ),
                 isThreeLine: true,
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => showModalBottomSheet<void>(

@@ -25,11 +25,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Verify park data import
-        run: python3 tool/test_update_national_parks.py
+        run: |
+          python3 tool/test_update_national_parks.py
+          python3 tool/test_update_pet_places.py
 
       - name: Refresh public park snapshot on scheduled or manual deployments
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-        run: python3 tool/update_national_parks.py
+        run: |
+          python3 tool/update_national_parks.py
+          python3 tool/update_pet_places.py
 
       - name: Install Flutter
         uses: subosito/flutter-action@v2
@@ -50,15 +54,20 @@ jobs:
         run: |
           mkdir -p test/fixtures
           cp assets/data/national_parks.json test/fixtures/national_parks.json
+          cp assets/data/pet_places.json test/fixtures/pet_places.json
+          cp assets/data/pet_food_registry.json test/fixtures/pet_food_registry.json
 
       - name: Verify map layout and full place names in Chrome
-        run: flutter test --platform chrome test/place_name_display_test.dart test/map_explorer_layout_test.dart test/map_location_entry_test.dart test/national_park_catalog_test.dart
+        run: flutter test --platform chrome test/place_name_display_test.dart test/map_explorer_layout_test.dart test/map_location_entry_test.dart test/national_park_catalog_test.dart test/pet_admission_test.dart test/pet_place_catalog_test.dart test/pet_friendly_map_service_test.dart test/pet_admission_panel_test.dart test/pet_place_map_test.dart test/pet_place_flow_test.dart test/pet_place_data_test.dart
 
       - name: Build web app
         run: flutter build web --target lib/main_web.dart --release --base-href /mungcation/ --no-web-resources-cdn
 
       - name: Verify deployed park asset matches the tested snapshot
-        run: cmp assets/data/national_parks.json build/web/assets/assets/data/national_parks.json
+        run: |
+          cmp assets/data/national_parks.json build/web/assets/assets/data/national_parks.json
+          cmp assets/data/pet_places.json build/web/assets/assets/data/pet_places.json
+          cmp assets/data/pet_food_registry.json build/web/assets/assets/data/pet_food_registry.json
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'pet_admission.dart';
 
 class GeoSample {
   final double latitude, longitude, accuracy;
@@ -168,6 +169,8 @@ class PlaceInfo {
   final GeoSample location;
   final DateTime fetchedAt;
   final DateTime? referenceDate;
+  final PetAdmission? admission;
+  final String roadName, buildingNumber;
   const PlaceInfo({
     required this.id,
     required this.name,
@@ -176,6 +179,9 @@ class PlaceInfo {
     required this.location,
     required this.fetchedAt,
     this.referenceDate,
+    this.admission,
+    this.roadName = '',
+    this.buildingNumber = '',
     this.phone = '',
     this.url = '',
     this.source = 'Apple 지도',
@@ -212,6 +218,13 @@ class PlaceInfo {
     referenceDate: j['referenceDate'] == null
         ? null
         : DateTime.parse(j['referenceDate'] as String),
+    admission: j['admission'] == null
+        ? null
+        : PetAdmission.fromJson(
+            Map<String, dynamic>.from(j['admission'] as Map),
+          ),
+    roadName: j['roadName'] as String? ?? '',
+    buildingNumber: j['buildingNumber'] as String? ?? '',
     phone: j['phone'] as String? ?? '',
     url: j['url'] as String? ?? '',
     source: j['source'] as String? ?? 'Apple 지도',
@@ -229,6 +242,9 @@ class PlaceInfo {
     if (referenceDate != null)
       'referenceDate': referenceDate!.toIso8601String(),
     'source': source,
+    if (admission != null) 'admission': admission!.toJson(),
+    if (roadName.isNotEmpty) 'roadName': roadName,
+    if (buildingNumber.isNotEmpty) 'buildingNumber': buildingNumber,
   };
   Map<String, dynamic> toMap() => {
     'id': id,
@@ -236,7 +252,30 @@ class PlaceInfo {
     'lat': location.latitude,
     'lon': location.longitude,
     'points': rewardEligible ? 30 : 0,
+    'category': category,
   };
+  PlaceInfo withAdmission(PetAdmission value) => PlaceInfo(
+    id: id,
+    name: name,
+    address: address,
+    category: category,
+    phone: phone,
+    url: url,
+    source: source,
+    location: location,
+    fetchedAt: fetchedAt,
+    referenceDate: referenceDate,
+    roadName: roadName,
+    buildingNumber: buildingNumber,
+    admission: value,
+  );
+  String? mapSubtitle(String? extra) {
+    final parts = [
+      if (admission != null) admission!.mapLabel,
+      if (extra != null && extra.isNotEmpty) extra,
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
 }
 
 class WalkingRoute {

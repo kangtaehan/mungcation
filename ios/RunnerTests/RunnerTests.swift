@@ -3,6 +3,14 @@ import XCTest
 @testable import Runner
 
 final class RunnerTests: XCTestCase {
+  func testSourceLinksRejectUnsafeSchemesAndCredentialUrls() {
+    let plugin = MungcationMapPlugin()
+    for url in ["javascript:alert(1)", "http://example.org", "https://user:secret@example.org", "https:"] {
+      var opened: Bool?
+      plugin.handle(FlutterMethodCall(methodName: "openUrl", arguments: ["url": url])) { opened = $0 as? Bool }
+      XCTAssertEqual(opened, false)
+    }
+  }
   func testSearchRejectsAnEmptyQuery() {
     let plugin = MungcationMapPlugin()
     var error: FlutterError?

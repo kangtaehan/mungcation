@@ -17,27 +17,34 @@ class NationalParkMapService implements MapService {
   Future<List<PlaceInfo>> search(String query, GeoSample? center) async {
     final cleaned = NationalParkCatalog.cleanQuery(query);
     final parkQuery = cleaned.endsWith('공원');
-    if (!parkQuery) return delegate.search(query, center);
+    final otherCategory = const [
+      '카페',
+      '식당',
+      '숙소',
+      '놀이터',
+      '동물병원',
+    ].any(cleaned.endsWith);
+    if (!parkQuery && otherCategory) return delegate.search(query, center);
     if (cleaned == '공원' && (center == null || !center.valid)) {
       throw const MapServiceFailure('주변 공원은 현재 위치를 확인하거나 지역 이름을 함께 입력해 주세요.');
     }
     try {
       final catalog = await (_catalog ??= loadCatalog());
       final parks = catalog.search(cleaned, center);
-      if (parks.isNotEmpty) return parks;
+      final exactName = parks.any(
+        (park) =>
+            NationalParkCatalog.compact(park.name) ==
+            NationalParkCatalog.compact(cleaned),
+      );
+      if (parks.isNotEmpty && (parkQuery || exactName)) return parks;
     } catch (_) {
       // A failed asset load can be retried; never invent park names on failure.
       _catalog = null;
     }
     final results = await delegate.search(query, center);
+    if (!parkQuery) return results;
     return results
-        .where(
-          (place) =>
-              place.rewardEligible &&
-              place.name.trim().isNotEmpty &&
-              place.name != place.address &&
-              !RegExp(r'^[가-힣0-9·.\s]+(?:동|읍|면|리)$').hasMatch(place.name),
-        )
+        .where((place) => place.rewardEligible && place.hasSpecificParkName)
         .toList();
   }
 

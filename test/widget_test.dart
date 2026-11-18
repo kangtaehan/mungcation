@@ -8,6 +8,7 @@ import 'walk_test.dart' show FakeLocation, makeDraft;
 import 'package:mungcation/models/walk_data.dart';
 import 'package:mungcation/features/data_tools_page.dart';
 import 'package:mungcation/services/local_repository.dart';
+import 'walking_reroute_test.dart' show CapturingMaps;
 
 class UnreadableRepository implements AppRepository {
   @override
@@ -134,7 +135,11 @@ void main() {
     );
     final source = FakeLocation(GeoSample(37, 127, 5, now));
     await tester.pumpWidget(
-      MungcationApp(repository: repo, locationSource: source),
+      MungcationApp(
+        repository: repo,
+        locationSource: source,
+        maps: CapturingMaps(),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('지도'));

@@ -10,6 +10,7 @@ import 'services/app_controller.dart';
 import 'services/local_repository.dart';
 import 'services/location_source.dart';
 import 'services/map_service.dart';
+import 'services/national_park_map_service.dart';
 import 'services/walk_session.dart';
 import 'features/account_pages.dart';
 import 'features/data_tools_page.dart';
@@ -67,9 +68,11 @@ class MungcationApp extends StatelessWidget {
       locationSource: locationSource,
       maps:
           maps ??
-          (kIsWeb || Platform.isAndroid
-              ? AndroidMapService()
-              : AppleMapService()),
+          NationalParkMapService(
+            kIsWeb || Platform.isAndroid
+                ? AndroidMapService()
+                : AppleMapService(),
+          ),
     ),
   );
 }
@@ -111,6 +114,8 @@ class _ShellState extends State<Shell> {
 
   @override
   void dispose() {
+    if (widget.maps is NationalParkMapService)
+      (widget.maps as NationalParkMapService).close();
     if (widget.maps is AndroidMapService)
       (widget.maps as AndroidMapService).close();
     walk.dispose();

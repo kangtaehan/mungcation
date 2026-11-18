@@ -46,6 +46,10 @@ class PlaceDetails extends StatelessWidget {
               Text(
                 '출처: ${place.source}\n검색 시각: ${dateLabel(place.fetchedAt.toLocal())}\n동반 조건의 최종 확인: 미확인',
               ),
+              if (place.referenceDate case final reference?)
+                Text(
+                  '공원 데이터 기준일: ${reference.year}-${reference.month.toString().padLeft(2, '0')}-${reference.day.toString().padLeft(2, '0')}',
+                ),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 8,

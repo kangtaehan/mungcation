@@ -39,7 +39,7 @@ void main() {
       location: GeoSample(37.5, 127, 0, DateTime.now()),
       fetchedAt: DateTime.now(),
     );
-    expect(place.displayName, '저장된 장소의 전체 주소');
+    expect(place.displayName, '공원명 확인 필요');
     expect(place.toMap()['name'], place.displayName);
   });
   test('blank place names use Korean names or the returned address', () async {

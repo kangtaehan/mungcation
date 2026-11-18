@@ -104,7 +104,8 @@ void main() {
         2,
       );
       expect(pixelPlaceKind(place), PixelPlaceKind.park);
-      await tester.tap(find.text('공원 · +30P'));
+      expect(find.text('공원 · +30P'), findsNothing);
+      await tester.tap(find.text('공원명 확인 필요 · +30P'));
       await tester.pumpAndSettle();
       expect(selected, 'park');
       expect(tester.takeException(), isNull);

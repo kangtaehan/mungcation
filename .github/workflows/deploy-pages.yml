@@ -5,6 +5,8 @@ on:
     branches:
       - main
   workflow_dispatch:
+  schedule:
+    - cron: '17 0 5 * *'
 
 permissions:
   contents: read
@@ -22,6 +24,13 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Verify park data import
+        run: python3 tool/test_update_national_parks.py
+
+      - name: Refresh public park snapshot on scheduled or manual deployments
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: python3 tool/update_national_parks.py
+
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -38,7 +47,7 @@ jobs:
         run: flutter test --concurrency=1
 
       - name: Verify map layout and full place names in Chrome
-        run: flutter test --platform chrome test/place_name_display_test.dart test/map_explorer_layout_test.dart test/map_location_entry_test.dart
+        run: flutter test --platform chrome test/place_name_display_test.dart test/map_explorer_layout_test.dart test/map_location_entry_test.dart test/national_park_catalog_test.dart
 
       - name: Build web app
         run: flutter build web --target lib/main_web.dart --release --base-href /mungcation/ --no-web-resources-cdn

@@ -21,3 +21,19 @@
 ## 범위와 한계
 
 공식 표준데이터는 지자체가 조성 완료한 도시공원을 대상으로 한다. 국립공원·사유지·최근 신설 또는 개명된 모든 공원을 완전하게 포함한다고 보장하지 않는다. 원본의 공식 공원명을 임의로 새 이름으로 바꾸지 않는다. 공원명과 관리번호가 동일해도 다른 좌표의 공원은 합치지 않는다. 잘못된 좌표·빈 이름·행정동 이름만 있는 행은 별도 집계하고 지도에 표시하지 않는다.
+
+## 반영 데이터와 갱신
+
+2026-11-18에 받은 공식 원본 18,376행에서 유효 공원 17,400개를 포함했다. 이름이 단순히 ‘공원’인 행을 포함한 부적합 224행과 중복 752행을 제외했다. 개별 기준일 범위는 2019-09-10~2026-10-28이며, 수집일을 명칭의 최신 확인일로 표시하지 않는다. 동일 이름·동일 좌표의 중복만 합치고 기준일이 더 최근인 행을 보존한다.
+
+웹은 매월 5일과 수동 배포 시 공개 원본을 새로 내려받아 검증·테스트 후 배포한다. 다운로드나 검증이 실패하면 기존 배포를 유지한다. 앱 번들 갱신은 아래 도구를 실행한 뒤 새 앱을 빌드한다.
+
+```powershell
+python tool/test_update_national_parks.py
+python tool/update_national_parks.py
+powershell -NoProfile -ExecutionPolicy Bypass -File tool/test_windows.ps1
+```
+
+공원만 찾을 때는 현재 위치 8km 내 후보 최대 60개를 거리순으로 조회하고, 기존 반려견별 산책 시간 필터를 적용한다. 지역·공원 이름 검색은 전국을 대상으로 한다. ‘서울 공원’, ‘제주 공원’ 같은 지역 검색을 지원한다. 공원 이름을 검색할 때 같은 단어가 들어간 도로 이름을 잘라 다른 공원명으로 간주하지 않는다. 카페·식당·동물병원과 경로 계산은 기존 공급자를 사용한다. 기존 기록·즐겨찾기의 이름을 좌표 근접만으로 다른 공원명으로 바꾸지 않으며, 공원명이 동·주소·미확인 이름이면 ‘공원명 확인 필요’로 표시한다.
+
+사용 Agent Skills: source-driven-development, planning-and-task-breakdown, incremental-implementation, test-driven-development, debugging-and-error-recovery, git-workflow-and-versioning, code-review-and-quality, shipping-and-launch.

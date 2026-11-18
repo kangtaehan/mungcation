@@ -6,6 +6,29 @@ import 'package:mungcation/services/national_park_catalog.dart';
 import 'package:mungcation/services/national_park_map_service.dart';
 import 'walking_reroute_test.dart' show CapturingMaps;
 
+class ParkFallbackMaps extends CapturingMaps {
+  @override
+  Future<List<PlaceInfo>> search(String query, GeoSample? center) async => [
+    for (final name in ['한남동', '서울특별시 용산구 한남동', '이름 정보 없음', '공원', '실제 이름 공원'])
+      PlaceInfo(
+        id: name,
+        name: name,
+        address: '서울특별시 용산구 한남동',
+        category: 'park',
+        location: GeoSample(37.5, 127, 5, DateTime.now()),
+        fetchedAt: DateTime.now(),
+      ),
+    PlaceInfo(
+      id: 'district',
+      name: '다른동',
+      address: '',
+      category: 'unknown',
+      location: GeoSample(37.5, 127, 5, DateTime.now()),
+      fetchedAt: DateTime.now(),
+    ),
+  ];
+}
+
 String fixtureCatalog() => jsonEncode({
   'schema': 1,
   'retrievedAt': '2026-11-18T00:00:00Z',
@@ -133,6 +156,52 @@ void main() {
         ),
         true,
       );
+    },
+  );
+  test(
+    'fallback never presents a district, address or unnamed park as a park name',
+    () async {
+      final service = NationalParkMapService(
+        ParkFallbackMaps(),
+        loadCatalog: () async =>
+            throw const FormatException('asset unavailable'),
+      );
+      final results = await service.search(
+        '공원',
+        GeoSample(37.5, 127, 5, DateTime.now()),
+      );
+      expect(results.map((place) => place.name), ['실제 이름 공원']);
+    },
+  );
+  test('official reference date survives saving and backup serialization', () {
+    final catalog = NationalParkCatalog.fromJson(fixtureCatalog());
+    final park = catalog.search('부산 공원', null).single;
+    final restored = PlaceInfo.fromJson(park.toJson());
+    expect(restored.name, park.name);
+    expect(restored.referenceDate, park.referenceDate);
+    expect(restored.source, park.source);
+  });
+  test(
+    'old saved park addresses and district names are not displayed as park names',
+    () {
+      for (final name in ['한남동', '서울특별시 용산구 한남동', '공원', '']) {
+        final place = PlaceInfo(
+          id: 'old',
+          name: name,
+          address: '서울특별시 용산구 한남동',
+          category: 'park',
+          location: GeoSample(37.5, 127, 0, DateTime.now()),
+          fetchedAt: DateTime.now(),
+        );
+        expect(place.displayName, '공원명 확인 필요');
+        expect(place.toMap()['name'], '공원명 확인 필요');
+        expect(
+          place.name,
+          name,
+          reason:
+              'Do not rewrite stored coordinates or historical names without evidence.',
+        );
+      }
     },
   );
 }

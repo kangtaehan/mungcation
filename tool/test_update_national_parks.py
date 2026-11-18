@@ -39,6 +39,11 @@ class NationalParkImportTest(unittest.TestCase):
         self.assertEqual(parks[0][7], '2026-09-22')
         self.assertEqual(report['duplicates'], 1)
 
+    def test_generic_category_is_not_a_real_park_name(self):
+        parks, report = normalize_records([self.record('공원'), self.record('미정')])
+        self.assertEqual(parks, [])
+        self.assertEqual(report['rejected'], 2)
+
 
 if __name__ == '__main__':
     unittest.main()

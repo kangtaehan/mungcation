@@ -27,7 +27,7 @@ def normalize_records(records):
         try:
             lat, lon = float(text('LATITUDE')), float(text('LONGITUDE'))
             reference = date.fromisoformat(text('REFERENCE_DATE')).isoformat()
-            if not (name and 32.5 <= lat <= 38.7 and 124 <= lon <= 132):
+            if not (name and name not in {'공원', '이름 정보 없음', '미정', '미상', '없음', '-'} and 32.5 <= lat <= 38.7 and 124 <= lon <= 132):
                 raise ValueError('Invalid name or coordinates')
             if re.fullmatch(r'[가-힣0-9·.]+(?:동|읍|면|리)', name):
                 raise ValueError('Administrative name only')

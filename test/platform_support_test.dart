@@ -11,6 +11,12 @@ import 'controller_test.dart' show MemoryRepository;
 
 void main() {
   testWidgets('photo actions respect platform support', (tester) async {
+    // This test checks platform capabilities, not scrolling. Keep the photo
+    // controls mounted in both VM and browser font/layout environments.
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final app = AppController(
       MemoryRepository(AppData(pet: const PetProfile(name: '몽이'))),
     );

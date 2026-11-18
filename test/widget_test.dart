@@ -163,12 +163,16 @@ void main() {
   });
   for (final size in [const Size(320, 568), const Size(390, 844)]) {
     testWidgets('main tabs fit $size', (tester) async {
+      final source = FakeLocation(GeoSample(37.5, 127, 5, DateTime.now()))
+        ..denied = true;
+      addTearDown(() => source.events.close());
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(
         MungcationApp(
+          locationSource: source,
           repository: MemoryRepository(
             AppData(pet: const PetProfile(name: '몽이')),
           ),

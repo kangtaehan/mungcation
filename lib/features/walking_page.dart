@@ -29,7 +29,7 @@ class WalkingPage extends StatefulWidget {
   State<WalkingPage> createState() => WalkingPageState();
 }
 
-class WalkingPageState extends State<WalkingPage> {
+class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
   final query = TextEditingController();
   List<PlaceInfo> places = [];
   List<PlaceInfo> nearbyCandidates = [];
@@ -55,6 +55,8 @@ class WalkingPageState extends State<WalkingPage> {
       widget.controller.data.pet?.size ?? '소형견',
     );
     widget.session.addListener(handleNavigationUpdate);
+    WidgetsBinding.instance.addObserver(this);
+    if (widget.visible) scheduleMapActivation();
   }
 
   WalkingRoute? get plannedRoute {
@@ -121,6 +123,7 @@ class WalkingPageState extends State<WalkingPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     widget.session.removeListener(handleNavigationUpdate);
     query.dispose();
     super.dispose();
@@ -129,33 +132,68 @@ class WalkingPageState extends State<WalkingPage> {
   @override
   void didUpdateWidget(covariant WalkingPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.visible &&
-        !oldWidget.visible &&
-        !discoveredNearby &&
-        widget.session.current != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => discoverNearby());
+    if (widget.visible && !oldWidget.visible) scheduleMapActivation();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && widget.visible && !loading)
+      scheduleMapActivation();
+  }
+
+  void scheduleMapActivation() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.visible) activateMap();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Future<void> activateMap() async {
+    if (loading) return;
+    if (!discoveredNearby && destination == null && query.text.trim().isEmpty) {
+      await discoverNearby();
+      return;
     }
+    // Refresh the map camera without replacing the user's search or route.
+    final request = ++_request;
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    final located = await widget.session.locate();
+    if (!mounted || request != _request) return;
+    setState(() {
+      loading = false;
+      if (located) {
+        centerRequest++;
+      } else {
+        error = widget.session.error ?? '현재 위치를 확인하지 못했어요.';
+      }
+    });
   }
 
   Future<void> discoverNearby() async {
     if (loading || discoveredNearby) return;
+    final request = ++_request;
     setState(() {
       loading = true;
       error = null;
     });
     try {
       if (!await widget.session.locate()) {
-        if (mounted) {
+        if (mounted && request == _request) {
           setState(() => error = widget.session.error ?? '현재 위치를 확인하지 못했어요.');
         }
         return;
       }
-      if (!mounted) return;
+      if (!mounted || request != _request) return;
       final center = widget.session.current;
       if (center == null) {
         setState(() => error = '현재 위치를 확인하면 주변 산책 장소를 보여드려요.');
         return;
       }
+      // Show the location immediately; nearby searches may take longer.
+      setState(() => centerRequest++);
       final results = await Future.wait([
         widget.maps.search('공원', center),
         widget.maps.search('애견 카페', center),
@@ -165,7 +203,7 @@ class WalkingPageState extends State<WalkingPage> {
       for (final place in results.expand((items) => items)) {
         unique.putIfAbsent(place.id, () => place);
       }
-      if (mounted) {
+      if (mounted && request == _request) {
         final dogSize = widget.controller.data.pet?.size ?? '소형견';
         final selection = selectNearbyWalkPlaces(
           center,
@@ -178,7 +216,6 @@ class WalkingPageState extends State<WalkingPage> {
           nearbyMinutes = selection.targetMinutes;
           places = selection.places;
           discoveredNearby = true;
-          centerRequest++;
           nearbySummary = selection.usedFallback
               ? '$dogSize 권장 왕복 ${selection.targetMinutes}분 이내 장소가 없어 가장 가까운 후보를 보여드려요.'
               : '$dogSize 기준 예상 왕복 ${selection.targetMinutes}분 이내 장소를 가까운 순서로 보여드려요.';
@@ -187,9 +224,10 @@ class WalkingPageState extends State<WalkingPage> {
         widget.session.places = places;
       }
     } catch (_) {
-      if (mounted) setState(() => error = '주변 장소를 불러오지 못했어요. 검색으로 다시 시도해 주세요.');
+      if (mounted && request == _request)
+        setState(() => error = '주변 장소를 불러오지 못했어요. 검색으로 다시 시도해 주세요.');
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted && request == _request) setState(() => loading = false);
     }
   }
 
@@ -574,7 +612,7 @@ class WalkingPageState extends State<WalkingPage> {
           const SizedBox(height: 8),
           if (!walk.hasWalk)
             FilledButton.icon(
-              onPressed: waiting ? null : begin,
+              onPressed: waiting || loading ? null : begin,
               icon: const Icon(Icons.pets),
               label: Text(
                 waiting
@@ -736,7 +774,7 @@ class WalkingPageState extends State<WalkingPage> {
             ),
           ),
           if (walk.current == null)
-            const Text('현재 위치를 누르거나 산책을 시작하면 위치 권한을 요청해요.'),
+            const Text('지도를 열면 위치 권한을 확인해요. 허용하면 내 주변이 자동으로 표시돼요.'),
           if (walk.current != null)
             Text(
               '마지막 위치 정확도 ±${walk.current!.accuracy.round()}m · ${dateLabel(walk.current!.time)}',

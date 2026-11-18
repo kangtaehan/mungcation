@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/ui.dart';
 import '../models/pet_admission.dart';
-import '../services/admission_source_link.dart';
+import '../services/source_link.dart';
 
 class PetAdmissionPanel extends StatelessWidget {
   final PetAdmission? policy;
@@ -101,7 +101,7 @@ class PetAdmissionPanel extends StatelessWidget {
                 label: const Text('원문 보기'),
                 onPressed: () async {
                   try {
-                    await (onOpenSource ?? openAdmissionSource)(
+                    await (onOpenSource ?? openSourceLink)(
                       value.sourceUrl,
                     );
                   } catch (_) {

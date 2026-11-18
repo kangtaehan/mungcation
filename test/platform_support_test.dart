@@ -68,6 +68,7 @@ void main() {
     final toggle = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
     expect(toggle.onChanged == null, kIsWeb);
     if (kIsWeb) expect(find.text('백업과 복원'), findsNothing);
+    if (kIsWeb) expect(find.text('지도 서비스 설정'), findsOneWidget);
   });
 
   testWidgets('GPX gives a platform notice before invoking native files', (

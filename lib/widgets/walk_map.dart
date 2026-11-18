@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart' show TileProvider;
 import '../models/walk_data.dart';
+import '../services/android_map_configuration.dart';
 
 class WalkMap extends StatefulWidget {
   final List<GeoSample> samples, route;
@@ -15,6 +17,8 @@ class WalkMap extends StatefulWidget {
   final bool fit, enabled;
   final bool showBadge;
   final Color routeColor;
+  final AndroidMapConfiguration? configuration;
+  final TileProvider? tileProvider;
   const WalkMap({
     super.key,
     this.samples = const [],
@@ -28,15 +32,34 @@ class WalkMap extends StatefulWidget {
     this.enabled = true,
     this.showBadge = true,
     this.routeColor = const Color(0xFF28734E),
+    this.configuration,
+    this.tileProvider,
   });
   @override
   State<WalkMap> createState() => _WalkMapState();
 }
 
 class _WalkMapState extends State<WalkMap> {
+  late final AndroidMapConfiguration configuration =
+      widget.configuration ?? AndroidMapConfiguration.instance;
+  bool get configuredRaster =>
+      configuration.value.tiles != const AndroidMapEndpoints().tiles;
   MethodChannel? channel;
   String? error;
   bool get supported => !kIsWeb && (Platform.isIOS || Platform.isAndroid);
+  @override
+  void initState() {
+    super.initState();
+    configuration.addListener(basemapChanged);
+  }
+
+  void basemapChanged() {
+    if (configuredRaster) {
+      channel?.setMethodCallHandler(null);
+      channel = null;
+    }
+  }
+
   Map<String, dynamic> payload({bool center = false, bool fit = false}) {
     final segments = <List<Map<String, dynamic>>>[];
     var segment = <Map<String, dynamic>>[];
@@ -100,7 +123,7 @@ class _WalkMapState extends State<WalkMap> {
   }
 
   Future<void> send({bool center = false, bool fit = false}) async {
-    if (channel == null) return;
+    if (channel == null || configuredRaster) return;
     try {
       await channel!.invokeMethod<void>(
         'update',
@@ -114,19 +137,27 @@ class _WalkMapState extends State<WalkMap> {
 
   @override
   void dispose() {
+    configuration.removeListener(basemapChanged);
     channel?.setMethodCallHandler(null);
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: configuration,
+    builder: (context, _) => buildMap(context),
+  );
+
+  Widget buildMap(BuildContext context) {
     if (!widget.enabled)
       return const ColoredBox(
         color: Color(0xFFE8F0E7),
         child: Center(child: Icon(Icons.map_outlined)),
       );
-    if (kIsWeb || Platform.isAndroid)
+    if (kIsWeb || Platform.isAndroid || configuredRaster)
       return AndroidWalkMap(
+        configuration: configuration,
+        tileProvider: widget.tileProvider,
         showBadge: widget.showBadge,
         samples: widget.samples,
         route: widget.route,

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:http/http.dart' as http;
 import '../core/korea.dart';
 import '../core/ui.dart';
 import '../models/walk_data.dart';
 import '../services/android_map_configuration.dart';
-import '../services/android_map_service.dart';
+import '../services/source_link.dart';
 import 'map_explorer_layout.dart';
 
 class TrackOverlays {
@@ -68,6 +69,7 @@ class AndroidWalkMap extends StatefulWidget {
   final Color routeColor;
   final AndroidMapConfiguration? configuration;
   final TileProvider? tileProvider;
+  final http.Client? tileClient;
   const AndroidWalkMap({
     super.key,
     this.samples = const [],
@@ -82,6 +84,7 @@ class AndroidWalkMap extends StatefulWidget {
     this.routeColor = const Color(0xFF28734E),
     this.configuration,
     this.tileProvider,
+    this.tileClient,
   });
   @override
   State<AndroidWalkMap> createState() => _AndroidWalkMapState();
@@ -96,16 +99,9 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
   final controller = MapController();
   late final AndroidMapConfiguration configuration =
       widget.configuration ?? AndroidMapConfiguration.instance;
-  bool ready = false, tileError = false;
+  bool ready = false;
+  String? failedTiles, fallbackFor;
   int retry = 0;
-  @override
-  void initState() {
-    super.initState();
-    if (widget.tileProvider == null)
-      BuiltInMapCachingProvider.getOrCreateInstance(
-        maxCacheSize: 64 * 1024 * 1024,
-      );
-  }
 
   LatLng point(GeoSample p) => LatLng(p.latitude, p.longitude);
   List<LatLng> get boundsPoints => widget.route.isNotEmpty
@@ -166,7 +162,7 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
 
   Future<void> open(String url) async {
     try {
-      await AndroidMapService.openLink(url);
+      await openSourceLink(url);
     } catch (_) {
       if (mounted) feedback(context, '링크를 열지 못했어요.');
     }
@@ -176,7 +172,11 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: configuration,
     builder: (context, _) {
-      final config = configuration.value,
+      final selectedConfig = configuration.value;
+      final usingFallback = fallbackFor == selectedConfig.tiles;
+      final config = usingFallback
+              ? selectedConfig.withOpenStreetMap()
+              : selectedConfig,
           overlays = trackOverlays(widget.samples),
           routePaws = spacedRoutePaws(widget.route),
           points = boundsPoints;
@@ -216,19 +216,23 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                   },
                 ),
                 children: [
-                  TileLayer(
+                  _BasemapTiles(
                     key: ValueKey('${config.tiles}-$retry'),
-                    urlTemplate: config.tiles,
-                    userAgentPackageName: 'com.mungcation.mungcation',
-                    maxNativeZoom: 19,
+                    endpoints: config,
                     tileProvider: widget.tileProvider,
-                    keepBuffer: 0,
-                    panBuffer: 0,
+                    client: widget.tileClient,
                     errorTileCallback: (tile, error, stack) {
-                      if (!tileError)
+                      if (failedTiles != config.tiles) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) setState(() => tileError = true);
+                          final selected = configuration.value;
+                          final activeTiles = fallbackFor == selected.tiles
+                              ? selected.withOpenStreetMap().tiles
+                              : selected.tiles;
+                          if (mounted && activeTiles == config.tiles)
+                            setState(() => failedTiles = config.tiles);
                         });
+                        WidgetsBinding.instance.ensureVisualUpdate();
+                      }
                     },
                   ),
                   PolylineLayer(
@@ -374,7 +378,7 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                   onCenter: () => fit(center: widget.current?.valid == true),
                 ),
               ),
-              if (tileError)
+              if (failedTiles == config.tiles || usingFallback)
                 Positioned(
                   top: widget.showBadge ? 0 : 185,
                   left: 0,
@@ -385,18 +389,29 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: Row(
                         children: [
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              '지도 타일을 불러오지 못했어요.',
-                              style: TextStyle(fontSize: 12),
+                              usingFallback
+                                  ? '브이월드 대신 기본 지도를 표시 중이에요.'
+                                  : '지도 타일을 불러오지 못했어요.',
+                              style: const TextStyle(fontSize: 12),
                             ),
                           ),
+                          if (config.isVWorld && !usingFallback)
+                            TextButton(
+                              onPressed: () => setState(() {
+                                failedTiles = null;
+                                fallbackFor = selectedConfig.tiles;
+                              }),
+                              child: const Text('기본 지도'),
+                            ),
                           TextButton(
                             onPressed: () => setState(() {
-                              tileError = false;
+                              failedTiles = null;
+                              fallbackFor = null;
                               retry++;
                             }),
-                            child: const Text('재시도'),
+                            child: Text(usingFallback ? '브이월드 재시도' : '재시도'),
                           ),
                         ],
                       ),
@@ -426,20 +441,23 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
                           ),
                         ),
                       ),
-                      InkWell(
-                        onTap: () =>
-                            open('https://www.openstreetmap.org/fixthemap'),
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(
-                            vertical: 7,
-                            horizontal: 3,
-                          ),
-                          child: Text(
-                            '지도 수정 안내',
-                            style: TextStyle(fontSize: 10, color: ink),
+                      if (!config.isVWorld &&
+                          Uri.tryParse(config.tiles)?.host ==
+                              'tile.openstreetmap.org')
+                        InkWell(
+                          onTap: () =>
+                              open('https://www.openstreetmap.org/fixthemap'),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                              vertical: 7,
+                              horizontal: 3,
+                            ),
+                            child: Text(
+                              '지도 수정 안내',
+                              style: TextStyle(fontSize: 10, color: ink),
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -449,6 +467,46 @@ class _AndroidWalkMapState extends State<AndroidWalkMap> {
         },
       );
     },
+  );
+}
+
+/// Keep a single network client per layer; TileLayer owns its disposal.
+class _BasemapTiles extends StatefulWidget {
+  final AndroidMapEndpoints endpoints;
+  final TileProvider? tileProvider;
+  final http.Client? client;
+  final ErrorTileCallBack errorTileCallback;
+  const _BasemapTiles({
+    super.key,
+    required this.endpoints,
+    this.tileProvider,
+    this.client,
+    required this.errorTileCallback,
+  });
+  @override
+  State<_BasemapTiles> createState() => _BasemapTilesState();
+}
+
+class _BasemapTilesState extends State<_BasemapTiles> {
+  late final TileProvider provider =
+      widget.tileProvider ??
+      NetworkTileProvider(
+        httpClient: widget.client,
+        cachingProvider: widget.endpoints.cacheTilesOnDisk
+            ? BuiltInMapCachingProvider.getOrCreateInstance(
+                maxCacheSize: 64 * 1024 * 1024,
+              )
+            : const DisabledMapCachingProvider(),
+      );
+  @override
+  Widget build(BuildContext context) => TileLayer(
+    urlTemplate: widget.endpoints.tiles,
+    userAgentPackageName: 'com.mungcation.mungcation',
+    maxNativeZoom: 19,
+    tileProvider: provider,
+    keepBuffer: 0,
+    panBuffer: 0,
+    errorTileCallback: widget.errorTileCallback,
   );
 }
 

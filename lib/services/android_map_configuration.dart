@@ -99,7 +99,7 @@ abstract interface class MapSettingsStore {
 }
 
 class PreferencesMapSettings implements MapSettingsStore {
-  final SharedPreferencesAsync preferences = SharedPreferencesAsync();
+  late final SharedPreferencesAsync preferences = SharedPreferencesAsync();
   @override
   Future<String?> load() => preferences.getString('mungcation.android.maps.v1');
   @override

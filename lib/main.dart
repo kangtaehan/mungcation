@@ -108,7 +108,7 @@ class _ShellState extends State<Shell> {
   }
 
   Future<void> initialize() async {
-    if (kIsWeb || Platform.isAndroid) {
+    if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
       await AndroidMapConfiguration.instance.load();
     }
     await controller.load();

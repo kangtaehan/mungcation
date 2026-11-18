@@ -98,7 +98,7 @@ class ProfilePage extends StatelessWidget {
                   },
           ),
         ),
-        if (!kIsWeb && Platform.isAndroid)
+        if (kIsWeb || Platform.isAndroid || Platform.isIOS)
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.map_outlined),

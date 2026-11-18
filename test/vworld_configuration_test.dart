@@ -4,6 +4,14 @@ import 'package:mungcation/services/android_map_configuration.dart';
 import 'android_services_test.dart' show MemoryMapSettings;
 
 void main() {
+  test(
+    'map configuration can be created before platform storage is accessed',
+    () {
+      final config = AndroidMapConfiguration();
+      expect(config.value.tiles, isNotEmpty);
+      config.dispose();
+    },
+  );
   test('VWorld changes only the basemap and uses WMTS row before column', () {
     const current = AndroidMapEndpoints(
       search: 'https://example.org/search',

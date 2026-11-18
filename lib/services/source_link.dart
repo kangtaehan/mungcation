@@ -4,7 +4,8 @@ import 'android_map_configuration.dart';
 import 'android_map_service.dart';
 import 'map_service.dart';
 
-Future<void> openAdmissionSource(String value) async {
+/// Opens an HTTPS data-source link using the current platform's link handler.
+Future<void> openSourceLink(String value) async {
   AndroidMapEndpoints.https(value);
   if (kIsWeb || Platform.isAndroid) return AndroidMapService.openLink(value);
   if (Platform.isIOS &&

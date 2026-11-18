@@ -149,6 +149,49 @@ void main() {
     expect(places.single.rewardEligible, false);
     service.close();
   });
+  test(
+    'category searches exclude administrative areas even when they have names',
+    () async {
+      final service = AndroidMapService(
+        configuration: AndroidMapConfiguration(store: MemoryMapSettings()),
+        requestSpacing: Duration.zero,
+        client: MockClient(
+          (_) async => jsonResponse([
+            {
+              'osm_id': 1,
+              'name': '한남동',
+              'class': 'place',
+              'type': 'suburb',
+              'lat': '37.5',
+              'lon': '127',
+            },
+            {
+              'osm_id': 2,
+              'name': '용산구',
+              'class': 'boundary',
+              'type': 'administrative',
+              'lat': '37.5',
+              'lon': '127',
+            },
+            {
+              'osm_id': 3,
+              'name': '실제 카페',
+              'class': 'amenity',
+              'type': 'cafe',
+              'lat': '37.5',
+              'lon': '127',
+            },
+          ]),
+        ),
+      );
+      final results = await service.search(
+        '카페',
+        GeoSample(37.5, 127, 5, DateTime.now()),
+      );
+      expect(results.map((place) => place.name), ['실제 카페']);
+      service.close();
+    },
+  );
   test('search results and routes stay inside Korea', () async {
     final service = AndroidMapService(
       configuration: AndroidMapConfiguration(store: MemoryMapSettings()),

@@ -132,6 +132,12 @@ class AndroidMapService implements MapService {
     return raw
         .map((e) => Map<String, dynamic>.from(e as Map))
         .map((e) {
+          if (category != null &&
+              (e['class'] == 'place' ||
+                  (e['class'] == 'boundary' &&
+                      e['type'] == 'administrative'))) {
+            return null;
+          }
           final lat = double.tryParse('${e['lat']}'),
               lon = double.tryParse('${e['lon']}');
           if (lat == null || lon == null) return null;

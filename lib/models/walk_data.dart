@@ -167,6 +167,7 @@ class PlaceInfo {
   final String id, name, address, category, phone, url, source;
   final GeoSample location;
   final DateTime fetchedAt;
+  final DateTime? referenceDate;
   const PlaceInfo({
     required this.id,
     required this.name,
@@ -174,6 +175,7 @@ class PlaceInfo {
     required this.category,
     required this.location,
     required this.fetchedAt,
+    this.referenceDate,
     this.phone = '',
     this.url = '',
     this.source = 'Apple 지도',
@@ -198,6 +200,9 @@ class PlaceInfo {
     fetchedAt: j['fetchedAt'] == null
         ? DateTime.now()
         : DateTime.parse(j['fetchedAt'] as String),
+    referenceDate: j['referenceDate'] == null
+        ? null
+        : DateTime.parse(j['referenceDate'] as String),
     phone: j['phone'] as String? ?? '',
     url: j['url'] as String? ?? '',
     source: j['source'] as String? ?? 'Apple 지도',
@@ -212,6 +217,8 @@ class PlaceInfo {
     'lat': location.latitude,
     'lon': location.longitude,
     'fetchedAt': fetchedAt.toIso8601String(),
+    if (referenceDate != null)
+      'referenceDate': referenceDate!.toIso8601String(),
     'source': source,
   };
   Map<String, dynamic> toMap() => {

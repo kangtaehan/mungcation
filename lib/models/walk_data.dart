@@ -185,9 +185,7 @@ class PlaceInfo {
       name.trim().isNotEmpty &&
       !const ['이름 정보 없음', '공원', '미상', '미정', '없음', '-'].contains(name.trim()) &&
       !RegExp(r'^[가-힣0-9·.\s]+(?:동|읍|면|리)$').hasMatch(name.trim()) &&
-      (name.trim() != address.trim() ||
-          name.contains('공원') ||
-          name.endsWith('숲'));
+      name.trim() != address.trim();
   String get displayName {
     if (category == 'park' && !hasSpecificParkName) return '공원명 확인 필요';
     return name.trim().isNotEmpty

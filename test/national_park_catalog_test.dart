@@ -111,12 +111,15 @@ void main() {
       expect(delegate.requests.single.destination.id, parks.single.id);
     },
   );
-  test(
+  testWidgets(
     'bundled national snapshot has real names, unique identities, and all 17 provinces',
-    () async {
+    (tester) async {
       final raw =
           jsonDecode(
-                await rootBundle.loadString('assets/data/national_parks.json'),
+                (await tester.runAsync(
+                  () =>
+                      rootBundle.loadString('assets/data/national_parks.json'),
+                ))!,
               )
               as Map<String, dynamic>;
       final rows = raw['parks'] as List;
@@ -184,11 +187,17 @@ void main() {
   test(
     'old saved park addresses and district names are not displayed as park names',
     () {
-      for (final name in ['한남동', '서울특별시 용산구 한남동', '공원', '']) {
+      for (final name in [
+        '한남동',
+        '서울특별시 용산구 한남동',
+        '공원',
+        '',
+        '독서당공원, 서울특별시 용산구 한남동',
+      ]) {
         final place = PlaceInfo(
           id: 'old',
           name: name,
-          address: '서울특별시 용산구 한남동',
+          address: name.contains(',') ? name : '서울특별시 용산구 한남동',
           category: 'park',
           location: GeoSample(37.5, 127, 0, DateTime.now()),
           fetchedAt: DateTime.now(),

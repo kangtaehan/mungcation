@@ -238,9 +238,33 @@ class AppController extends ChangeNotifier {
             note: note.trim(),
             access: access,
             notedAt: DateTime.now(),
+            preparation: d.savedPlaces[place.id]?.preparation ?? const {},
+            preparedAt: d.savedPlaces[place.id]?.preparedAt,
           ),
         },
       ),
     );
+  }
+
+  Future<bool> savePlacePreparation(PlaceInfo place, Set<String> items) {
+    final checked = Set<String>.unmodifiable(items);
+    if (!SavedPlace.preparationItems.keys.toSet().containsAll(checked))
+      return Future.value(false);
+    return update((data) {
+      final old = data.savedPlaces[place.id];
+      return data.copyWith(
+        savedPlaces: {
+          ...data.savedPlaces,
+          place.id: SavedPlace(
+            place: place,
+            note: old?.note ?? '',
+            access: old?.access ?? PetAccess.unknown,
+            notedAt: old?.notedAt,
+            preparation: checked,
+            preparedAt: DateTime.now(),
+          ),
+        },
+      );
+    });
   }
 }

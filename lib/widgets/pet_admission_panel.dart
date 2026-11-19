@@ -70,6 +70,17 @@ class PetAdmissionPanel extends StatelessWidget {
                 '유모차·캐리어 필요 여부 미확인 · 허용 구역, 크기 제한, 대여 여부를 시설에 확인해 주세요.',
               ),
             ] else ...[
+              if (value.freshnessNotice(DateTime.now()) case final notice?)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    notice,
+                    style: const TextStyle(
+                      color: forest,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               if (value.referenceDate != null)
                 Text(
                   '자료 기준일: ${day(value.referenceDate!)}',
@@ -101,9 +112,7 @@ class PetAdmissionPanel extends StatelessWidget {
                 label: const Text('원문 보기'),
                 onPressed: () async {
                   try {
-                    await (onOpenSource ?? openSourceLink)(
-                      value.sourceUrl,
-                    );
+                    await (onOpenSource ?? openSourceLink)(value.sourceUrl);
                   } catch (_) {
                     if (context.mounted)
                       feedback(context, '원문을 열지 못했어요. 잠시 후 다시 시도해 주세요.');

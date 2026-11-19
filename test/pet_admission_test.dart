@@ -4,6 +4,28 @@ import 'package:mungcation/models/walk_data.dart';
 
 void main() {
   test(
+    'source collection dates cannot make old admission rules look newly written',
+    () {
+      final policy = PetAdmission(
+        referenceDate: DateTime(2022, 11, 30),
+        checkedAt: DateTime(2026, 11, 20),
+      );
+      expect(policy.freshnessNotice(DateTime(2026, 11, 20)), contains('1년 이상'));
+      expect(
+        PetAdmission(
+          checkedAt: DateTime(2026, 11, 20),
+        ).freshnessNotice(DateTime(2026, 11, 20)),
+        contains('작성일 미확인'),
+      );
+      expect(
+        PetAdmission(
+          referenceDate: DateTime(2026, 11, 19),
+        ).freshnessNotice(DateTime(2026, 11, 20)),
+        isNull,
+      );
+    },
+  );
+  test(
     'alternative transport conditions remain alternatives through storage',
     () {
       final policy = PetAdmission.fromJson({

@@ -47,6 +47,18 @@ class PetAdmission {
           PetAdmissionStatus.unknown => '동반 여부 미확인',
         };
   bool get hasTransportInfo => transportRule.isNotEmpty;
+  String? freshnessNotice(DateTime now) {
+    final date = referenceDate;
+    if (date == null) return '규정 작성일 미확인 · 수집일은 규정 갱신일과 다를 수 있어요.';
+    final days = DateTime.utc(
+      now.year,
+      now.month,
+      now.day,
+    ).difference(DateTime.utc(date.year, date.month, date.day)).inDays;
+    if (days < 0) return '자료 기준일을 다시 확인해 주세요.';
+    return days >= 365 ? '원자료 기준일이 1년 이상 전이에요. 방문 전 규정을 다시 확인해 주세요.' : null;
+  }
+
   String get mapLabel => !hasEvidence
       ? '동반 미확인'
       : switch (status) {

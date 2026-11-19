@@ -110,6 +110,7 @@ class PreferencesMapSettings implements MapSettingsStore {
 class AndroidMapConfiguration extends ChangeNotifier {
   static final instance = AndroidMapConfiguration();
   final MapSettingsStore store;
+  late final AndroidMapEndpoints defaults;
   AndroidMapConfiguration({
     MapSettingsStore? store,
     String vworldKey = const String.fromEnvironment('VWORLD_API_KEY'),
@@ -121,25 +122,47 @@ class AndroidMapConfiguration extends ChangeNotifier {
         error = '브이월드 인증키 설정을 확인하지 못해 기본 지도를 사용해요.';
       }
     }
+    defaults = value;
   }
   AndroidMapEndpoints value = const AndroidMapEndpoints();
   String? error;
   Future<void> load() async {
     try {
       final raw = await store.load();
-      if (raw != null)
-        value = AndroidMapEndpoints.fromJson(
-          jsonDecode(raw) as Map<String, dynamic>,
-        );
+      if (raw != null) {
+        final saved = jsonDecode(raw) as Map<String, dynamic>;
+        value = AndroidMapEndpoints.fromJson(saved);
+        // Upgrade the previous stock basemap once; preserve routing and later
+        // explicit preferences. Never discard valid settings on write failure.
+        if (defaults.isVWorld &&
+            saved['basemapDefaultsVersion'] != 1 &&
+            value.tiles == const AndroidMapEndpoints().tiles) {
+          value = AndroidMapEndpoints(
+            tiles: defaults.tiles,
+            attribution: defaults.attribution,
+            attributionUrl: defaults.attributionUrl,
+            search: value.search,
+            routing: value.routing,
+          );
+          try {
+            await store.save(_encode(value));
+          } catch (_) {
+            error = '브이월드 기본 지도는 적용했지만 설정을 저장하지 못했어요.';
+          }
+        }
+      }
     } catch (_) {
       error = '지도 설정을 읽지 못해 기본 서비스를 사용해요.';
     }
     notifyListeners();
   }
 
+  String _encode(AndroidMapEndpoints next) =>
+      jsonEncode({...next.toJson(), 'basemapDefaultsVersion': 1});
+
   Future<void> save(AndroidMapEndpoints next) async {
     next.validate();
-    await store.save(jsonEncode(next.toJson()));
+    await store.save(_encode(next));
     value = next;
     error = null;
     notifyListeners();

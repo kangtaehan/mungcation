@@ -5,6 +5,54 @@ import 'android_services_test.dart' show MemoryMapSettings;
 
 void main() {
   test(
+    'legacy default maps migrate once to the deployed VWorld key, preserving routing',
+    () async {
+      final store = MemoryMapSettings()
+        ..raw = jsonEncode(
+          const AndroidMapEndpoints(
+            routing: 'https://example.org/routed-foot',
+          ).toJson(),
+        );
+      final config = AndroidMapConfiguration(
+        store: store,
+        vworldKey: 'release-key-12345',
+      );
+      await config.load();
+      expect(config.value.isVWorld, true);
+      expect(config.value.routing, 'https://example.org/routed-foot');
+      expect(jsonDecode(store.raw!)['basemapDefaultsVersion'], 1);
+      await config.save(config.value.withOpenStreetMap());
+      final loaded = AndroidMapConfiguration(
+        store: store,
+        vworldKey: 'release-key-12345',
+      );
+      await loaded.load();
+      expect(
+        loaded.value.isVWorld,
+        false,
+        reason: 'A later explicit user choice remains respected.',
+      );
+      config.dispose();
+      loaded.dispose();
+    },
+  );
+
+  test(
+    'migration can display the released basemap even when saving its marker fails',
+    () async {
+      final store = MemoryMapSettings()
+        ..raw = jsonEncode(const AndroidMapEndpoints().toJson())
+        ..fail = true;
+      final config = AndroidMapConfiguration(
+        store: store,
+        vworldKey: 'release-key-12345',
+      );
+      await config.load();
+      expect(config.value.isVWorld, true);
+      config.dispose();
+    },
+  );
+  test(
     'map configuration can be created before platform storage is accessed',
     () {
       final config = AndroidMapConfiguration();

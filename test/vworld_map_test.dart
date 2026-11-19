@@ -16,6 +16,27 @@ class ErrorTile extends Fake implements TileImage {}
 
 void main() {
   testWidgets(
+    'released map defaults need no user key entry and reset back to VWorld',
+    (tester) async {
+      final config = AndroidMapConfiguration(
+        store: MemoryMapSettings(),
+        vworldKey: 'release-test-key-12345',
+      );
+      await config.save(config.value.withOpenStreetMap());
+      await tester.pumpWidget(
+        MaterialApp(home: AndroidMapSettingsPage(configuration: config)),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('기본값 불러오기'));
+      await tester.tap(find.text('기본값 불러오기'));
+      await tester.pumpAndSettle();
+      expect(find.text('브이월드가 앱 기본 지도로 자동 적용돼요.'), findsOneWidget);
+      expect(find.byKey(const ValueKey('vworld-key')), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+      config.dispose();
+    },
+  );
+  testWidgets(
     'VWorld network tiles explicitly disable the persistent tile cache',
     (tester) async {
       final config = AndroidMapConfiguration(

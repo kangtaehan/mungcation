@@ -24,16 +24,17 @@ class _AndroidMapSettingsPageState extends State<AndroidMapSettingsPage> {
   void initState() {
     super.initState();
     final value = configuration.value;
+    final keySource = value.isVWorld ? value : configuration.defaults;
     basemap = value.isVWorld
         ? 'vworld'
         : value.tiles == const AndroidMapEndpoints().tiles
         ? 'default'
         : 'custom';
     vworldKey = TextEditingController(
-      text: value.isVWorld
+      text: keySource.isVWorld
           ? RegExp(
                   r'/req/wmts/1\.0\.0/([^/]+)/',
-                ).firstMatch(value.tiles)?.group(1) ??
+                ).firstMatch(keySource.tiles)?.group(1) ??
                 ''
           : '',
     );
@@ -43,6 +44,19 @@ class _AndroidMapSettingsPageState extends State<AndroidMapSettingsPage> {
     attribution = TextEditingController(text: value.attribution);
     link = TextEditingController(text: value.attributionUrl);
   }
+
+  Widget keyField() => TextField(
+    key: const ValueKey('vworld-key'),
+    controller: vworldKey,
+    enabled: !saving,
+    obscureText: true,
+    autocorrect: false,
+    enableSuggestions: false,
+    decoration: const InputDecoration(
+      labelText: '브이월드 인증키',
+      hintText: '발급받은 인증키 입력',
+    ),
+  );
 
   @override
   void dispose() {
@@ -128,28 +142,23 @@ class _AndroidMapSettingsPageState extends State<AndroidMapSettingsPage> {
           ),
           const SizedBox(height: 12),
           if (basemap == 'vworld') ...[
-            TextField(
-              key: const ValueKey('vworld-key'),
-              controller: vworldKey,
-              enabled: !saving,
-              obscureText: true,
-              autocorrect: false,
-              enableSuggestions: false,
-              decoration: const InputDecoration(
-                labelText: '브이월드 인증키',
-                hintText: '발급받은 인증키 입력',
+            if (configuration.defaults.isVWorld)
+              const Text('브이월드가 앱 기본 지도로 자동 적용돼요.')
+            else ...[
+              keyField(),
+              const SizedBox(height: 8),
+              const Text(
+                '브이월드에서 발급받은 키가 필요해요. 웹용 키에는 사용할 사이트 주소를 등록해 주세요. 저장하면 이 기기의 지도에 적용돼요.',
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '브이월드에서 발급받은 키가 필요해요. 웹용 키에는 사용할 사이트 주소를 등록해 주세요. 저장하면 이 기기의 지도에 적용돼요.',
-            ),
+            ],
           ] else if (basemap == 'default')
             const Text('기본 배경은 OpenStreetMap이며, iPhone에서는 Apple 지도를 사용해요.'),
           const SizedBox(height: 20),
           ExpansionTile(
             title: const Text('고급 서비스 설정'),
             children: [
+              if (basemap == 'vworld' && configuration.defaults.isVWorld)
+                keyField(),
               const Text(
                 '검색·경로 주소 변경은 웹·Android에 적용돼요. iPhone의 검색·도보 경로는 Apple 지도를 유지해요. 검색어·위치·목적지는 해당 제공자로 전송되며 사용 한도와 조건을 확인해 주세요.',
               ),
@@ -220,10 +229,15 @@ class _AndroidMapSettingsPageState extends State<AndroidMapSettingsPage> {
             onPressed: saving
                 ? null
                 : () {
-                    const defaults = AndroidMapEndpoints();
+                    final defaults = configuration.defaults;
                     setState(() {
-                      basemap = 'default';
-                      vworldKey.clear();
+                      basemap = defaults.isVWorld ? 'vworld' : 'default';
+                      vworldKey.text = defaults.isVWorld
+                          ? RegExp(
+                                  r'/req/wmts/1\.0\.0/([^/]+)/',
+                                ).firstMatch(defaults.tiles)?.group(1) ??
+                                ''
+                          : '';
                       tiles.text = defaults.tiles;
                       search.text = defaults.search;
                       routing.text = defaults.routing;

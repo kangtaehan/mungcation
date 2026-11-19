@@ -41,7 +41,20 @@
 
 배포 기본값은 `flutter build web --target lib/main_web.dart --release --base-href /mungcation/ --no-web-resources-cdn --dart-define=VWORLD_API_KEY=발급키`로 지정할 수 있다. 빌드 키가 없거나 형식이 잘못되면 기본 지도, 이미 저장한 사용자 선택이 있으면 그 선택을 우선한다. 웹 키는 JS 번들에 포함되므로 서버 비밀키처럼 취급하지 않고 발급 설정의 도메인 제한을 사용한다. 실제 키를 소스 파일이나 예제에 커밋하지 않는다.
 
-GitHub Pages 자동 배포는 저장소 Actions 변수 `VWORLD_API_KEY`가 있으면 같은 빌드 설정으로 전달한다. 키가 없는 배포도 작동한다. 현재 공개 웹 주소는 `https://kangtaehan.github.io/mungcation/`이며 해당 서비스 주소에 맞는 발급 설정이 필요하다. 등록 URL·허용 호출 범위는 발급 화면에서 확인한다.
+GitHub Actions 자동 배포는 저장소 Secret `VWORLD_API_KEY`를 공통 빌드 도구에 전달한다. 현재 공개 웹 주소는 `https://kangtaehan.github.io/mungcation/`이며 해당 서비스 주소에 맞는 발급 설정이 필요하다. 등록 URL·허용 호출 범위는 발급 화면에서 확인한다.
+
+### 공통 기본 지도 배포 (2026-11-20)
+
+공식 빌드는 GitHub Actions 저장소 **Secret `VWORLD_API_KEY`** 또는 Git에서 제외된 `config/app_keys.json`의 키로 브이월드를 기본 적용한다. 키가 없는 공식 빌드는 실패시키며 사용자가 직접 키를 입력할 필요가 없다. 키는 앱에 포함되는 클라이언트 키이므로 발급한 APP/웹 사용 범위와 사용량 제한은 계속 관리한다.
+
+- Android 스토어 파일: `python tool/build_release.py android`
+- iOS 스토어 파일 (macOS·서명 설정 필요): `python3 tool/build_release.py ios`
+- 확인용 웹: `python tool/build_release.py web`
+- 자동 검증용 APK·iOS 시뮬레이터도 같은 빌드 도구로 키를 전달한다.
+
+도구는 환경변수의 키를 우선하고, 로컬 파일을 차선으로 사용하며, 임시 define 파일로 빌드에 전달한다. 실제 키는 소스·예제·로그에 기록하지 않는다. 로컬 설정은 `config/app_keys.example.json`을 복사해 작성할 수 있다. 일반 `flutter build`를 직접 실행할 때는 이전 설명처럼 `--dart-define` 또는 `--dart-define-from-file`을 반드시 전달한다.
+
+기존 저장 설정 중 이전 기본 OSM 지도를 쓰던 사용자는 브이월드로 한 번 갱신한다. 검색·경로 서버는 보존하며, 이후 사용자가 명시적으로 선택한 다른 지도는 유지한다. 저장 실패 시에도 이번 실행의 브이월드 적용은 유지하고 다음 실행에 갱신을 재시도한다. 기본값 복원도 배포된 브이월드 설정으로 돌아간다.
 
 국내 경로 비교는 앱과 분리한 `tool/compare_walking_routes.py`로 실행한다. `TMAP_APP_KEY` 환경변수에 본인의 키를 설정하고 `python tool/compare_walking_routes.py --start 위도 경도 --end 위도 경도`를 실행한다. 기존 OSRM과 TMAP 보행자 API에 같은 좌표를 요청하고 거리·시간·출발점/종점 오차만 출력한다. 형상·주소·키를 보고서에 쓰지 않으며 자동으로 우승 제공자를 선택하지 않는다. 키가 없으면 TMAP 비교를 생략했다고 명시하고 불완전한 비교에는 실패 종료 코드를 반환한다. 결과물의 저장·이용 기간은 각 제공자 약관을 따른다.
 

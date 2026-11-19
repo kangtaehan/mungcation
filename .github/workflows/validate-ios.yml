@@ -17,9 +17,13 @@ concurrency:
 jobs:
   validate:
     runs-on: macos-15
+    env:
+      VWORLD_API_KEY: ${{ secrets.VWORLD_API_KEY }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Check shared VWorld release key
+        run: python3 tool/build_release.py ios-simulator --check
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.41.9

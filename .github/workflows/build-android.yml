@@ -18,6 +18,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      VWORLD_API_KEY: ${{ secrets.VWORLD_API_KEY }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -28,6 +30,9 @@ jobs:
           distribution: temurin
           java-version: 17
           cache: gradle
+
+      - name: Check shared VWorld release key
+        run: python3 tool/build_release.py apk --check
 
       - name: Install Flutter
         uses: subosito/flutter-action@v2
@@ -45,10 +50,10 @@ jobs:
         run: flutter test --concurrency=1
 
       - name: Build debug APK
-        run: flutter build apk --debug
+        run: python3 tool/build_release.py apk
 
       - name: Build web app
-        run: flutter build web --target lib/main_web.dart --release --no-web-resources-cdn
+        run: python3 tool/build_release.py web
 
       - name: Test web support in Chrome
         run: flutter test --platform chrome test/platform_support_test.dart test/place_name_display_test.dart

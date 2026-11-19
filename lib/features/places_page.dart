@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/ui.dart';
 import '../models/walk_data.dart';
+import '../models/saved_place.dart';
 import '../services/map_service.dart';
 import '../services/android_map_service.dart' show MapServiceFailure;
 import '../services/walk_session.dart';
@@ -28,6 +29,17 @@ class PlacesSearchPage extends StatefulWidget {
 class _PlacesSearchPageState extends State<PlacesSearchPage> {
   final query = TextEditingController();
   String category = '전체';
+  String savedCategory = '전체';
+  static const savedKinds = {
+    '카페': {'cafe'},
+    '식당': {'restaurant'},
+    '공공·문화': {'civic'},
+    '마트·쇼핑': {'shopping'},
+    '숙소': {'stay', 'hotel'},
+    '공원': {'park'},
+    '놀이터': {'playground'},
+    '동물병원': {'hospital', 'veterinary'},
+  };
   bool loading = false, searched = false, savedOnly = false;
   bool onlyAllowed = true;
   int serial = 0;
@@ -112,6 +124,12 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
     builder: (context, _) {
       final savedPlaces = widget.controller.data.savedPlaces.values
           .where(
+            (saved) =>
+                savedCategory == '전체' ||
+                (savedKinds[savedCategory]?.contains(saved.place.category) ??
+                    false),
+          )
+          .where(
             (s) =>
                 query.text.trim().isEmpty ||
                 '${s.place.displayName} ${s.place.address} ${s.note}'
@@ -184,37 +202,39 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
                         search();
                     },
             ),
-          if (!savedOnly)
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final c in [
-                  '전체',
-                  '카페',
-                  '식당',
-                  '공공·문화',
-                  '마트·쇼핑',
-                  '숙소',
-                  '공원',
-                  '놀이터',
-                  '동물병원',
-                ])
-                  ChoiceChip(
-                    label: Text(c),
-                    selected: category == c,
-                    onSelected: loading
-                        ? null
-                        : (_) {
-                            setState(() {
-                              category = c;
-                              if (c == '동물병원' || c == '놀이터')
-                                onlyAllowed = false;
-                            });
-                            search();
-                          },
-                  ),
-              ],
-            ),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final c in [
+                '전체',
+                '카페',
+                '식당',
+                '공공·문화',
+                '마트·쇼핑',
+                '숙소',
+                '공원',
+                '놀이터',
+                '동물병원',
+              ])
+                ChoiceChip(
+                  label: Text(c),
+                  selected: (savedOnly ? savedCategory : category) == c,
+                  onSelected: loading && !savedOnly
+                      ? null
+                      : (_) {
+                          if (savedOnly) {
+                            setState(() => savedCategory = c);
+                            return;
+                          }
+                          setState(() {
+                            category = c;
+                            if (c == '동물병원' || c == '놀이터') onlyAllowed = false;
+                          });
+                          search();
+                        },
+                ),
+            ],
+          ),
           if (!savedOnly)
             TextButton.icon(
               onPressed: loading
@@ -268,7 +288,24 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
                 leading: Icon(placeCategoryIcon(place.category)),
                 title: Text(place.displayName),
                 subtitle: Text(
-                  '${place.address}\n${place.admission?.label ?? '동반 여부 미확인'}${place.admission?.hasTransportInfo == true ? '\n유모차·이동장 관련 조건 있음' : ''}',
+                  [
+                    place.address,
+                    place.admission?.label ?? '동반 여부 미확인',
+                    if (place.admission?.hasTransportInfo == true)
+                      '유모차·이동장 관련 조건 있음',
+                    if (savedOnly &&
+                        widget
+                                .controller
+                                .data
+                                .savedPlaces[place.id]
+                                ?.preparedAt !=
+                            null)
+                      widget.controller.data.savedPlaces[place.id]!.preparedOn(
+                            DateTime.now(),
+                          )
+                          ? '오늘 준비 ${widget.controller.data.savedPlaces[place.id]!.preparation.length}/${SavedPlace.preparationItems.length}'
+                          : '준비 상태 다시 확인',
+                  ].join('\n'),
                 ),
                 isThreeLine: true,
                 trailing: const Icon(Icons.chevron_right),

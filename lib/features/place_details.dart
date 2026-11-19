@@ -6,6 +6,7 @@ import '../models/walk_data.dart';
 import '../services/app_controller.dart';
 import '../services/map_service.dart';
 import '../widgets/pet_admission_panel.dart';
+import '../widgets/outing_checklist.dart';
 
 class PlaceDetails extends StatelessWidget {
   final PlaceInfo place;
@@ -43,6 +44,11 @@ class PlaceDetails extends StatelessWidget {
               ),
               const Divider(),
               PetAdmissionPanel(policy: place.admission),
+              OutingChecklist(
+                key: ValueKey('outing-${place.id}'),
+                controller: controller,
+                place: place,
+              ),
               const SizedBox(height: 12),
               Text(
                 '장소 출처: ${place.source}\n검색 시각: ${dateLabel(place.fetchedAt.toLocal())}',
@@ -62,11 +68,12 @@ class PlaceDetails extends StatelessWidget {
                         : () async {
                             if (saved != null &&
                                 (saved.note.isNotEmpty ||
-                                    saved.access != PetAccess.unknown) &&
+                                    saved.access != PetAccess.unknown ||
+                                    saved.preparedAt != null) &&
                                 !await confirm(
                                   context,
                                   '즐겨찾기를 해제할까요?',
-                                  '이 장소의 개인 메모도 함께 삭제돼요.',
+                                  '이 장소의 개인 메모와 외출 준비 기록도 함께 삭제돼요.',
                                   action: '해제',
                                 ))
                               return;
@@ -167,6 +174,25 @@ class PlaceDetails extends StatelessWidget {
                       },
                       icon: const Icon(Icons.copy),
                       label: const Text('전화번호 복사'),
+                    ),
+                  if (place.address.isNotEmpty)
+                    TextButton.icon(
+                      icon: const Icon(Icons.copy_outlined),
+                      label: const Text('주소 복사'),
+                      onPressed: () async {
+                        try {
+                          await Clipboard.setData(
+                            ClipboardData(
+                              text: '${place.displayName}\n${place.address}',
+                            ),
+                          );
+                          if (context.mounted)
+                            feedback(context, '장소 이름과 주소를 복사했어요.');
+                        } catch (_) {
+                          if (context.mounted)
+                            feedback(context, '주소를 복사하지 못했어요.');
+                        }
+                      },
                     ),
                 ],
               ),

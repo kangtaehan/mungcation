@@ -65,7 +65,7 @@ jobs:
           cp assets/data/pet_food_registry.json test/fixtures/pet_food_registry.json
 
       - name: Verify map layout and full place names in Chrome
-        run: flutter test --platform chrome test/platform_support_test.dart test/place_name_display_test.dart test/map_explorer_layout_test.dart test/map_location_entry_test.dart test/national_park_catalog_test.dart test/pet_admission_test.dart test/pet_place_catalog_test.dart test/pet_friendly_map_service_test.dart test/pet_admission_panel_test.dart test/pet_place_map_test.dart test/pet_place_flow_test.dart test/pet_place_data_test.dart test/vworld_configuration_test.dart test/vworld_map_test.dart
+        run: flutter test --platform chrome test/platform_support_test.dart test/place_name_display_test.dart test/map_explorer_layout_test.dart test/map_location_entry_test.dart test/national_park_catalog_test.dart test/pet_admission_test.dart test/pet_place_catalog_test.dart test/pet_friendly_map_service_test.dart test/pet_admission_panel_test.dart test/pet_place_map_test.dart test/pet_place_flow_test.dart test/pet_place_data_test.dart test/vworld_configuration_test.dart test/vworld_map_test.dart test/outing_preparation_test.dart test/outing_widgets_test.dart
 
       - name: Build web app
         run: python3 tool/build_release.py web

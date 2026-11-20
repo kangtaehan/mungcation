@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mungcation/models/pet_admission.dart';
 import 'place_name_display_test.dart' show longParkName, longNamedPark;
 import 'walking_reroute_test.dart' show mountWalk;
 
@@ -13,7 +14,16 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final walk = await mountWalk(tester);
-    await walk.page.routeTo(longNamedPark(), closeSheet: false);
+    await walk.page.routeTo(
+      longNamedPark().withAdmission(
+        const PetAdmission(
+          status: PetAdmissionStatus.allowed,
+          sourceName: '테스트 확인 자료',
+          sourceUrl: 'https://example.org/park-policy',
+        ),
+      ),
+      closeSheet: false,
+    );
     await tester.pumpAndSettle();
     final cardName = find.descendant(
       of: find.byKey(const ValueKey('suggestion-long-park')),

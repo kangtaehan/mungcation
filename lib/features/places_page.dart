@@ -41,7 +41,6 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
     '동물병원': {'hospital', 'veterinary'},
   };
   bool loading = false, searched = false, savedOnly = false;
-  bool onlyAllowed = true;
   int serial = 0;
   String? error;
   List<PlaceInfo> places = [];
@@ -65,21 +64,11 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
       '마트·쇼핑' => '마트',
       _ => category,
     };
-    final term = [
+    final effectiveTerm = [
       query.text.trim(),
+      '반려동물 동반',
       suffix,
-    ].where((v) => v.isNotEmpty).join(' ');
-    if (!onlyAllowed && term.isEmpty) {
-      setState(() => error = '일반 검색은 지역·시설 이름이나 종류를 선택해 주세요.');
-      return;
-    }
-    final effectiveTerm = onlyAllowed
-        ? [
-            query.text.trim(),
-            '반려동물 동반',
-            suffix,
-          ].where((value) => value.isNotEmpty).join(' ')
-        : term;
+    ].where((value) => value.isNotEmpty).join(' ');
     final request = ++serial;
     setState(() {
       loading = true;
@@ -98,10 +87,10 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
         }
       }
       if (!mounted || request != serial) return;
-      final results = await widget.maps.search(
+      final results = (await widget.maps.search(
         effectiveTerm,
         widget.session.current,
-      );
+      )).where((place) => place.admission?.isAllowed == true).toList();
       if (mounted && request == serial) {
         setState(() => places = results);
         widget.session.places = results;
@@ -187,20 +176,9 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
             ),
           ),
           if (!savedOnly)
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('동반 가능 자료가 있는 곳만'),
-              subtitle: const Text('일반 검색 결과와 개인 메모는 동반 가능의 근거로 사용하지 않아요.'),
-              value: onlyAllowed,
-              onChanged: loading
-                  ? null
-                  : (value) {
-                      setState(() => onlyAllowed = value);
-                      if (query.text.trim().isNotEmpty ||
-                          category != '전체' ||
-                          value)
-                        search();
-                    },
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('동반 가능·조건부 동반 자료가 확인된 장소만 표시해요. 미확인 장소는 제외해요.'),
             ),
           Wrap(
             spacing: 8,
@@ -228,7 +206,6 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
                           }
                           setState(() {
                             category = c;
-                            if (c == '동물병원' || c == '놀이터') onlyAllowed = false;
                           });
                           search();
                         },

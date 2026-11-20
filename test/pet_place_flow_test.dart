@@ -8,12 +8,15 @@ import 'package:mungcation/models/pet_admission.dart';
 import 'package:mungcation/models/walk_data.dart';
 import 'package:mungcation/services/app_controller.dart';
 import 'package:mungcation/services/walk_session.dart';
+import 'package:mungcation/widgets/walk_map.dart';
+import 'pet_place_catalog_test.dart' show registeredPlace;
 import 'controller_test.dart' show MemoryRepository;
 import 'walk_test.dart' show FakeLocation;
 import 'walking_reroute_test.dart' show CapturingMaps;
 
 class PetFlowMaps extends CapturingMaps {
   bool offlineRestaurants = false;
+  List<PlaceInfo> extraResults = [];
   final queries = <String>[];
   final store = PlaceInfo(
     id: 'store',
@@ -35,7 +38,10 @@ class PetFlowMaps extends CapturingMaps {
   Future<List<PlaceInfo>> search(String query, GeoSample? center) async {
     queries.add(query);
     if (offlineRestaurants && query.contains('식당')) throw StateError('offline');
-    return query.contains('마트') || query == '반려동물 동반' ? [store] : [];
+    return [
+      if (query.contains('마트') || query == '반려동물 동반') store,
+      ...extraResults,
+    ];
   }
 }
 
@@ -82,22 +88,46 @@ void main() {
         InMemorySharedPreferencesAsync.empty(),
   );
   testWidgets(
-    'map name searches default to sourced pet places and general search requires opting out',
+    'map discovery and every name search exclude unknown, denied and unsourced places',
     (tester) async {
-      final maps = PetFlowMaps();
+      final maps = PetFlowMaps()
+        ..extraResults = [
+          registeredPlace(id: 'unknown', name: '피자시티'),
+          registeredPlace(id: 'denied', name: '동반 불가 테스트매장').withAdmission(
+            const PetAdmission(
+              status: PetAdmissionStatus.notAllowed,
+              sourceName: '공식 안내',
+              sourceUrl: 'https://example.org/policy',
+            ),
+          ),
+          registeredPlace(id: 'unsourced', name: '근거 없는 허용').withAdmission(
+            const PetAdmission(status: PetAdmissionStatus.allowed),
+          ),
+        ];
       final page = await mountFlow(tester, maps);
       expect(maps.queries, contains('반려동물 동반 공원'));
       expect(maps.queries, isNot(contains('공원')));
+      expect(page.places.map((p) => p.id), ['store']);
+      expect(
+        tester.widget<WalkMap>(find.byType(WalkMap)).places.map((p) => p.id),
+        ['store'],
+      );
       page.query.text = '피자시티';
       await page.search();
       await tester.pumpAndSettle();
       expect(maps.queries.last, '반려동물 동반 피자시티');
-      final filter = find.widgetWithText(FilterChip, '동반 가능만');
-      await tester.ensureVisible(filter);
-      await tester.tap(filter);
+      expect(page.places, isEmpty);
+      expect(tester.widget<WalkMap>(find.byType(WalkMap)).places, isEmpty);
+      expect(find.widgetWithText(FilterChip, '동반 가능만'), findsNothing);
+      final hospital = find.widgetWithText(ActionChip, '동물병원');
+      await tester.ensureVisible(hospital);
+      await tester.tap(hospital);
       await tester.pumpAndSettle();
-      expect(maps.queries.last, '피자시티');
-      expect(tester.widget<FilterChip>(filter).selected, false);
+      expect(maps.queries.last, '반려동물 동반 동물병원');
+      expect(page.places, isEmpty);
+      await page.routeTo(maps.extraResults.first, closeSheet: false);
+      await tester.pumpAndSettle();
+      expect(tester.widget<WalkMap>(find.byType(WalkMap)).places, isEmpty);
     },
   );
   testWidgets('one unavailable source does not hide published nearby places', (

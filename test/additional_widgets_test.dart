@@ -81,6 +81,12 @@ void main() {
     await tester.tap(find.text('카페'));
     await tester.pumpAndSettle();
     expect(maps.queries.single, '강남 반려동물 동반 카페');
+    expect(
+      session.places,
+      isEmpty,
+      reason: 'Unverified provider results must never become map places.',
+    );
+    expect(find.byType(SwitchListTile), findsNothing);
     await tester.tap(find.text('즐겨찾기'));
     await tester.enterText(find.byType(TextField), '');
     await tester.pumpAndSettle();

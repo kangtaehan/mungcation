@@ -39,7 +39,6 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
   int selectedRoute = 0, centerRequest = 0, _request = 0;
   bool loading = false, finishing = false;
   bool discoveredNearby = false;
-  bool onlyAllowed = true;
   String? error;
   String? nearbySummary;
   PlaceInfo? destination;
@@ -207,12 +206,13 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
       }
 
       final results = await Future.wait([
-        nearbySearch(onlyAllowed ? '반려동물 동반 공원' : '공원'),
-        nearbySearch(onlyAllowed ? '반려동물 동반 식당' : '식당'),
-        nearbySearch(onlyAllowed ? '반려동물 동반' : '카페'),
+        nearbySearch('반려동물 동반 공원'),
+        nearbySearch('반려동물 동반 식당'),
+        nearbySearch('반려동물 동반'),
       ]);
       final unique = <String, PlaceInfo>{};
       for (final place in results.expand((items) => items)) {
+        if (place.admission?.isAllowed != true) continue;
         unique.putIfAbsent(place.id, () => place);
       }
       if (mounted && request == _request) {
@@ -236,9 +236,7 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
                 ? '주변 장소를 조회하지 못했어요. 내 주변을 눌러 다시 시도해 주세요.'
                 : '일부 장소 조회를 완료하지 못해 확인된 자료만 표시해요.';
           } else if (places.isEmpty) {
-            error = onlyAllowed
-                ? '동반 가능 자료가 있는 주변 장소를 찾지 못했어요. 일반 장소는 ‘동반 가능만’을 해제해 확인할 수 있어요.'
-                : '권장 산책 시간에 맞는 주변 장소를 찾지 못했어요.';
+            error = '동반 가능 자료가 확인된 주변 장소가 없어요. 미확인 장소는 표시하지 않아요.';
           }
         });
         widget.session.places = places;
@@ -255,24 +253,25 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
     if (query.text.trim().isEmpty) return;
     final text = query.text.trim();
     final parsed = PetPlaceQuery(text);
-    final friendly = onlyAllowed || parsed.onlyAllowed;
-    final effective = friendly && !parsed.onlyAllowed ? '반려동물 동반 $text' : text;
+    final effective = parsed.onlyAllowed ? text : '반려동물 동반 $text';
     final request = ++_request;
     setState(() {
-      onlyAllowed = friendly;
       loading = true;
       error = null;
     });
     try {
-      final found = await widget.maps.search(effective, widget.session.current);
+      final found = (await widget.maps.search(
+        effective,
+        widget.session.current,
+      )).where((place) => place.admission?.isAllowed == true).toList();
       if (mounted && request == _request) {
         setState(() {
           places = found;
           nearbySummary = null;
           nearbyCandidates = [];
           nearbyCenter = null;
-          if (found.isEmpty && friendly) {
-            error = '동반 가능 자료가 있는 장소를 찾지 못했어요. 일반 장소는 ‘동반 가능만’을 해제해 확인할 수 있어요.';
+          if (found.isEmpty) {
+            error = '동반 가능 자료가 확인된 장소를 찾지 못했어요. 미확인 장소는 표시하지 않아요.';
           }
         });
         widget.session.places = found;
@@ -491,21 +490,9 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
                 },
         ),
         const SizedBox(width: 8),
-        FilterChip(
+        const Chip(
           label: const Text('동반 가능만'),
-          selected: onlyAllowed,
-          onSelected: loading
-              ? null
-              : (selected) async {
-                  setState(() => onlyAllowed = selected);
-                  if (!selected) query.text = PetPlaceQuery.clean(query.text);
-                  if (query.text.trim().isNotEmpty) {
-                    await search();
-                  } else {
-                    discoveredNearby = false;
-                    await discoverNearby();
-                  }
-                },
+          avatar: Icon(Icons.verified_outlined, size: 16),
         ),
         for (final entry in const {
           '동반 가능': Icons.pets_outlined,
@@ -523,8 +510,6 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
             onPressed: loading
                 ? null
                 : () async {
-                    if (entry.key == '동반 가능') onlyAllowed = true;
-                    if (entry.key == '동물병원') onlyAllowed = false;
                     query.text = switch (entry.key) {
                       '동반 가능' => '반려동물 동반',
                       '음식점' => '식당',
@@ -629,8 +614,13 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
               ? null
               : navigator?.update(walk.current!) ??
                     navigationGuidance(planned, walk.current!),
-          pointPlaces = places.where((place) => place.rewardEligible).toList(),
-          recommendedPlaces = places
+          visiblePlaces = places
+              .where((place) => place.admission?.isAllowed == true)
+              .toList(),
+          pointPlaces = visiblePlaces
+              .where((place) => place.rewardEligible)
+              .toList(),
+          recommendedPlaces = visiblePlaces
               .where((place) => !place.rewardEligible)
               .toList(),
           recentVisits = widget.controller.data.realWalks.reversed
@@ -646,10 +636,10 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
           samples: walk.samples,
           current: walk.current,
           route: planned?.samples ?? const [],
-          places: places,
+          places: visiblePlaces,
           placeLabels: {
             if (walk.current case final current?)
-              for (final place in places)
+              for (final place in visiblePlaces)
                 place.id:
                     '왕복 약 ${estimatedRoundTripMinutes(current, place).ceil()}분',
           },

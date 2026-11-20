@@ -8,17 +8,87 @@ import '../services/map_service.dart';
 import '../widgets/pet_admission_panel.dart';
 import '../widgets/outing_checklist.dart';
 
-class PlaceDetails extends StatelessWidget {
+class PlaceDetails extends StatefulWidget {
   final PlaceInfo place;
   final MapService maps;
   final AppController controller;
-  final VoidCallback? onRoute;
+  final ValueChanged<PlaceInfo>? onRoute;
   const PlaceDetails({
     super.key,
     required this.place,
     required this.maps,
     required this.controller,
     this.onRoute,
+  });
+  @override
+  State<PlaceDetails> createState() => _PlaceDetailsState();
+}
+
+class _PlaceDetailsState extends State<PlaceDetails> {
+  Future<PlaceInfo>? lookup;
+  void resolve() {
+    final maps = widget.maps;
+    lookup = maps is PlaceAdmissionResolver
+        ? Future<PlaceInfo>.sync(
+            () =>
+                (maps as PlaceAdmissionResolver).resolveAdmission(widget.place),
+          )
+        : null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    resolve();
+  }
+
+  @override
+  void didUpdateWidget(PlaceDetails oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.place != widget.place || oldWidget.maps != widget.maps)
+      resolve();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (lookup == null)
+      return _PlaceDetailsBody(
+        place: widget.place,
+        maps: widget.maps,
+        controller: widget.controller,
+        onRoute: widget.onRoute,
+      );
+    return FutureBuilder<PlaceInfo>(
+      future: lookup,
+      initialData: widget.place,
+      builder: (context, snapshot) => _PlaceDetailsBody(
+        place: snapshot.data ?? widget.place,
+        maps: widget.maps,
+        controller: widget.controller,
+        onRoute: widget.onRoute,
+        resolving: snapshot.connectionState != ConnectionState.done,
+        failed: snapshot.hasError,
+        onRetry: () => setState(resolve),
+      ),
+    );
+  }
+}
+
+class _PlaceDetailsBody extends StatelessWidget {
+  final PlaceInfo place;
+  final MapService maps;
+  final AppController controller;
+  final ValueChanged<PlaceInfo>? onRoute;
+  final bool resolving, failed;
+  final VoidCallback? onRetry;
+  const _PlaceDetailsBody({
+    required this.place,
+    required this.maps,
+    required this.controller,
+    this.onRoute,
+    this.resolving = false,
+    this.failed = false,
+    this.onRetry,
   });
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -43,7 +113,25 @@ class PlaceDetails extends StatelessWidget {
                 '영업시간: ${place.admission?.openingHours.isNotEmpty == true ? '${place.admission!.openingHours} (자료 기준)' : '매장 확인 필요'}',
               ),
               const Divider(),
-              PetAdmissionPanel(policy: place.admission),
+              if (failed) ...[
+                const Text('동반 정보를 불러오지 못했어요. 저장된 정보가 있다면 함께 표시해요.'),
+                TextButton(
+                  onPressed: onRetry,
+                  child: const Text('동반 정보 다시 불러오기'),
+                ),
+              ],
+              if (resolving && place.admission?.hasEvidence != true) ...[
+                const LinearProgressIndicator(semanticsLabel: '동반 정보 확인 중'),
+                const Text('동반 정보를 확인하고 있어요.'),
+              ] else if (!failed || place.admission?.hasEvidence == true)
+                PetAdmissionPanel(policy: place.admission),
+              if (!resolving &&
+                  !failed &&
+                  place.category == 'park' &&
+                  place.admission?.hasEvidence != true)
+                const Text(
+                  '이 공원의 이름·위치 자료에는 동반 규정이 없고, 연결할 수 있는 동반 자료도 찾지 못했어요. 동반 불가라는 뜻은 아니며 관리기관 확인이 필요해요.',
+                ),
               OutingChecklist(
                 key: ValueKey('outing-${place.id}'),
                 controller: controller,
@@ -144,7 +232,7 @@ class PlaceDetails extends StatelessWidget {
                 children: [
                   if (onRoute != null)
                     FilledButton(
-                      onPressed: onRoute,
+                      onPressed: resolving ? null : () => onRoute!(place),
                       child: const Text('여기까지 도보 경로'),
                     ),
                   OutlinedButton(

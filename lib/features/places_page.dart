@@ -317,9 +317,9 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
                     place: place,
                     maps: widget.maps,
                     controller: widget.controller,
-                    onRoute: () {
+                    onRoute: (resolved) {
                       Navigator.pop(context);
-                      widget.onDestination(place);
+                      widget.onDestination(resolved);
                     },
                   ),
                 ),

@@ -53,6 +53,7 @@ class PetPlaceQuery {
 
 class PetPlaceCatalog {
   final List<PlaceInfo> places;
+  final Set<String> _parkPolicyIds;
   late final Map<String, List<PlaceInfo>> _names = _index(places);
   static Map<String, List<PlaceInfo>> _index(List<PlaceInfo> places) {
     final names = <String, List<PlaceInfo>>{};
@@ -62,7 +63,7 @@ class PetPlaceCatalog {
     return names;
   }
 
-  PetPlaceCatalog._(this.places);
+  PetPlaceCatalog._(this.places, this._parkPolicyIds);
   static Future<PetPlaceCatalog> load() async => PetPlaceCatalog.fromJson(
     await rootBundle.loadString('assets/data/pet_places.json'),
   );
@@ -77,11 +78,14 @@ class PetPlaceCatalog {
     );
     final now = DateTime.now();
     final places = <PlaceInfo>[];
+    final parkPolicyIds = <String>{};
     for (final entry in data['places'] as List) {
       final row = Map<String, dynamic>.from(entry as Map);
       final lat = (row['lat'] as num).toDouble(),
           lon = (row['lon'] as num).toDouble();
       final name = (row['name'] as String).trim();
+      if (row['kind'] == '여행지' || row['category'] == 'park')
+        parkPolicyIds.add(row['id'] as String);
       if (name.isEmpty || !isInKorea(lat, lon))
         throw const FormatException('잘못된 장소 좌표 또는 이름');
       final policy = row['admissionKey'] == null
@@ -106,7 +110,10 @@ class PetPlaceCatalog {
         ),
       );
     }
-    return PetPlaceCatalog._(List.unmodifiable(places));
+    return PetPlaceCatalog._(
+      List.unmodifiable(places),
+      Set.unmodifiable(parkPolicyIds),
+    );
   }
 
   List<PlaceInfo> search(
@@ -142,15 +149,21 @@ class PetPlaceCatalog {
   }
 
   PlaceInfo? match(PlaceInfo place) {
-    if (place.roadName.isEmpty || place.buildingNumber.isEmpty) return null;
-    final matches = (_names[petNameKey(place.name)] ?? [])
-        .where(
-          (candidate) =>
-              _compact(candidate.roadName) == _compact(place.roadName) &&
-              candidate.buildingNumber.trim() == place.buildingNumber.trim() &&
-              distanceBetween(candidate.location, place.location) <= 100,
-        )
-        .toList();
+    final matches = (_names[petNameKey(place.name)] ?? []).where((candidate) {
+      if (place.category == 'park' && !_parkPolicyIds.contains(candidate.id))
+        return false;
+      if (distanceBetween(candidate.location, place.location) > 100)
+        return false;
+      final sameStreet =
+          place.roadName.isNotEmpty &&
+          place.buildingNumber.isNotEmpty &&
+          _compact(candidate.roadName) == _compact(place.roadName) &&
+          candidate.buildingNumber.trim() == place.buildingNumber.trim();
+      final sameFullAddress =
+          place.address.trim().isNotEmpty &&
+          _compact(candidate.address) == _compact(place.address);
+      return candidate.id == place.id || sameStreet || sameFullAddress;
+    }).toList();
     return matches.length == 1 ? matches.single : null;
   }
 }

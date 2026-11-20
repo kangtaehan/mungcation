@@ -81,6 +81,25 @@ void main() {
     () => SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty(),
   );
+  testWidgets(
+    'map name searches default to sourced pet places and general search requires opting out',
+    (tester) async {
+      final maps = PetFlowMaps();
+      final page = await mountFlow(tester, maps);
+      expect(maps.queries, contains('반려동물 동반 공원'));
+      expect(maps.queries, isNot(contains('공원')));
+      page.query.text = '피자시티';
+      await page.search();
+      await tester.pumpAndSettle();
+      expect(maps.queries.last, '반려동물 동반 피자시티');
+      final filter = find.widgetWithText(FilterChip, '동반 가능만');
+      await tester.ensureVisible(filter);
+      await tester.tap(filter);
+      await tester.pumpAndSettle();
+      expect(maps.queries.last, '피자시티');
+      expect(tester.widget<FilterChip>(filter).selected, false);
+    },
+  );
   testWidgets('one unavailable source does not hide published nearby places', (
     tester,
   ) async {

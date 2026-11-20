@@ -7,6 +7,11 @@ abstract interface class MapService {
   Future<void> openPlace(PlaceInfo place);
 }
 
+/// Resolves bundled admission evidence for an existing or saved map point.
+abstract interface class PlaceAdmissionResolver {
+  Future<PlaceInfo> resolveAdmission(PlaceInfo place);
+}
+
 class AppleMapService implements MapService {
   static const channel = MethodChannel('mungcation/maps');
   @override

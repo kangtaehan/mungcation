@@ -5,6 +5,7 @@ import '../core/ui.dart';
 import '../models/walk_data.dart';
 import '../services/app_controller.dart';
 import '../services/map_service.dart';
+import '../services/pet_place_catalog.dart';
 import '../services/nearby_walk_planner.dart';
 import '../services/route_safety.dart';
 import '../services/walk_session.dart';
@@ -38,6 +39,7 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
   int selectedRoute = 0, centerRequest = 0, _request = 0;
   bool loading = false, finishing = false;
   bool discoveredNearby = false;
+  bool onlyAllowed = true;
   String? error;
   String? nearbySummary;
   PlaceInfo? destination;
@@ -205,9 +207,9 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
       }
 
       final results = await Future.wait([
-        nearbySearch('공원'),
-        nearbySearch('반려동물 동반 식당'),
-        nearbySearch('반려동물 동반'),
+        nearbySearch(onlyAllowed ? '반려동물 동반 공원' : '공원'),
+        nearbySearch(onlyAllowed ? '반려동물 동반 식당' : '식당'),
+        nearbySearch(onlyAllowed ? '반려동물 동반' : '카페'),
       ]);
       final unique = <String, PlaceInfo>{};
       for (final place in results.expand((items) => items)) {
@@ -234,7 +236,9 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
                 ? '주변 장소를 조회하지 못했어요. 내 주변을 눌러 다시 시도해 주세요.'
                 : '일부 장소 조회를 완료하지 못해 확인된 자료만 표시해요.';
           } else if (places.isEmpty) {
-            error = '권장 산책 시간에 맞는 주변 장소를 찾지 못했어요.';
+            error = onlyAllowed
+                ? '동반 가능 자료가 있는 주변 장소를 찾지 못했어요. 일반 장소는 ‘동반 가능만’을 해제해 확인할 수 있어요.'
+                : '권장 산책 시간에 맞는 주변 장소를 찾지 못했어요.';
           }
         });
         widget.session.places = places;
@@ -249,22 +253,27 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
 
   Future<void> search() async {
     if (query.text.trim().isEmpty) return;
+    final text = query.text.trim();
+    final parsed = PetPlaceQuery(text);
+    final friendly = onlyAllowed || parsed.onlyAllowed;
+    final effective = friendly && !parsed.onlyAllowed ? '반려동물 동반 $text' : text;
     final request = ++_request;
     setState(() {
+      onlyAllowed = friendly;
       loading = true;
       error = null;
     });
     try {
-      final found = await widget.maps.search(
-        query.text.trim(),
-        widget.session.current,
-      );
+      final found = await widget.maps.search(effective, widget.session.current);
       if (mounted && request == _request) {
         setState(() {
           places = found;
           nearbySummary = null;
           nearbyCandidates = [];
           nearbyCenter = null;
+          if (found.isEmpty && friendly) {
+            error = '동반 가능 자료가 있는 장소를 찾지 못했어요. 일반 장소는 ‘동반 가능만’을 해제해 확인할 수 있어요.';
+          }
         });
         widget.session.places = found;
       }
@@ -374,7 +383,7 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
         place: place,
         maps: widget.maps,
         controller: widget.controller,
-        onRoute: () => routeTo(place),
+        onRoute: (resolved) => routeTo(resolved),
       ),
     );
   }
@@ -414,7 +423,7 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
                 ),
                 subtitle: Text(
                   [
-                    if (place.admission != null) place.admission!.label,
+                    place.admission?.label ?? '동반 여부 미확인',
                     if (place.admission?.hasTransportInfo == true)
                       '유모차·이동장 관련 조건 있음',
                     if (widget.session.current == null)
@@ -481,6 +490,23 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
                   discoverNearby();
                 },
         ),
+        const SizedBox(width: 8),
+        FilterChip(
+          label: const Text('동반 가능만'),
+          selected: onlyAllowed,
+          onSelected: loading
+              ? null
+              : (selected) async {
+                  setState(() => onlyAllowed = selected);
+                  if (!selected) query.text = PetPlaceQuery.clean(query.text);
+                  if (query.text.trim().isNotEmpty) {
+                    await search();
+                  } else {
+                    discoveredNearby = false;
+                    await discoverNearby();
+                  }
+                },
+        ),
         for (final entry in const {
           '동반 가능': Icons.pets_outlined,
           '공원': Icons.park_outlined,
@@ -497,12 +523,13 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
             onPressed: loading
                 ? null
                 : () async {
+                    if (entry.key == '동반 가능') onlyAllowed = true;
+                    if (entry.key == '동물병원') onlyAllowed = false;
                     query.text = switch (entry.key) {
                       '동반 가능' => '반려동물 동반',
-                      '음식점' => '반려동물 동반 식당',
-                      '카페' => '반려동물 동반 카페',
-                      '공공·문화' => '반려동물 동반 공공시설',
-                      '마트·쇼핑' => '반려동물 동반 마트',
+                      '음식점' => '식당',
+                      '공공·문화' => '공공시설',
+                      '마트·쇼핑' => '마트',
                       _ => entry.key,
                     };
                     if (widget.session.current == null &&

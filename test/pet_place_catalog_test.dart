@@ -67,6 +67,29 @@ PlaceInfo registeredPlace({
 
 void main() {
   test(
+    'public parks need matching full identity and a travel-place policy, not a cafe policy',
+    () {
+      final raw = jsonDecode(petFixture()) as Map<String, dynamic>;
+      final row = (raw['places'] as List).first as Map<String, dynamic>;
+      PlaceInfo park({String address = '서울특별시 성동구 왕십리로 10'}) => PlaceInfo(
+        id: 'official-park',
+        name: 'allowed 지점',
+        address: address,
+        category: 'park',
+        location: GeoSample(37.5, 127, 0, DateTime.now()),
+        fetchedAt: DateTime.now(),
+      );
+      expect(PetPlaceCatalog.fromJson(jsonEncode(raw)).match(park()), isNull);
+      row['category'] = 'civic';
+      row['kind'] = '여행지';
+      final catalog = PetPlaceCatalog.fromJson(jsonEncode(raw));
+      expect(catalog.match(park())?.admission?.isAllowed, true);
+      expect(catalog.match(park(address: '서울특별시 성동구 왕십리로 20')), isNull);
+      (raw['places'] as List).add({...row, 'id': 'duplicate-policy'});
+      expect(PetPlaceCatalog.fromJson(jsonEncode(raw)).match(park()), isNull);
+    },
+  );
+  test(
     'friendly search includes allowed and conditional records, never denied records',
     () {
       final catalog = PetPlaceCatalog.fromJson(petFixture());

@@ -4,7 +4,7 @@ import 'map_service.dart';
 import 'national_park_map_service.dart';
 import 'pet_place_catalog.dart';
 
-class PetFriendlyMapService implements MapService {
+class PetFriendlyMapService implements MapService, PlaceAdmissionResolver {
   final MapService delegate;
   final Future<PetPlaceCatalog> Function() loadPlaces;
   final Future<PetFoodRegistry> Function() loadRegistry;
@@ -21,8 +21,18 @@ class PetFriendlyMapService implements MapService {
   Future<List<PlaceInfo>> search(String query, GeoSample? center) async {
     final parsed = PetPlaceQuery(query);
     if (!parsed.onlyAllowed &&
-        const ['공원', '동물병원', '놀이터'].any(query.trim().endsWith))
-      return delegate.search(query, center);
+        const ['공원', '동물병원', '놀이터'].any(query.trim().endsWith)) {
+      final places = await delegate.search(query, center);
+      return Future.wait(
+        places.map((place) async {
+          try {
+            return await resolveAdmission(place);
+          } catch (_) {
+            return place;
+          }
+        }),
+      );
+    }
     if (parsed.term.isEmpty &&
         (parsed.onlyAllowed || parsed.category.isNotEmpty) &&
         (center == null || !center.valid)) {
@@ -83,14 +93,24 @@ class PetFriendlyMapService implements MapService {
     }
     final results = <String, PlaceInfo>{};
     for (final candidate in [...local, ...remote]) {
-      var place = catalog?.match(candidate) ?? candidate;
+      final matched = catalog?.match(candidate);
+      var place = matched == null
+          ? candidate
+          : candidate.category == 'park'
+          ? candidate.withAdmission(matched.admission!)
+          : matched;
       final registered = registry?.match(place);
       // Registration supplies eligibility only; it must not erase a facility's
       // published equipment, area restrictions or explicit denial.
       if (registered != null && place.admission?.hasEvidence != true)
         place = place.withAdmission(registered);
       if (parsed.onlyAllowed && place.admission?.isAllowed != true) continue;
-      results.putIfAbsent(place.id, () => place);
+      final identity = matched?.id ?? place.id;
+      if (candidate.category == 'park' && matched != null) {
+        results[identity] = place;
+      } else {
+        results.putIfAbsent(identity, () => place);
+      }
     }
     if (results.isEmpty && providerError != null) throw providerError;
     if (catalog == null && results.isEmpty && parsed.onlyAllowed) {
@@ -105,6 +125,31 @@ class PetFriendlyMapService implements MapService {
         ).compareTo(distanceBetween(center, b.location)),
       );
     return found.take(60).toList();
+  }
+
+  @override
+  Future<PlaceInfo> resolveAdmission(PlaceInfo place) async {
+    PetPlaceCatalog catalog;
+    try {
+      catalog = await (_places ??= loadPlaces());
+    } catch (_) {
+      _places = null;
+      throw const MapServiceFailure('동반 장소 자료를 읽지 못했어요. 다시 시도해 주세요.');
+    }
+    final policy = catalog.match(place)?.admission;
+    var resolved = policy == null ? place : place.withAdmission(policy);
+    if ((place.category == 'cafe' || place.category == 'restaurant') &&
+        resolved.admission?.hasEvidence != true) {
+      try {
+        final registry = await (_registry ??= loadRegistry());
+        final registered = registry.match(resolved);
+        if (registered != null) resolved = resolved.withAdmission(registered);
+      } catch (_) {
+        _registry = null;
+        throw const MapServiceFailure('음식점 동반 등록 자료를 읽지 못했어요. 다시 시도해 주세요.');
+      }
+    }
+    return resolved;
   }
 
   @override

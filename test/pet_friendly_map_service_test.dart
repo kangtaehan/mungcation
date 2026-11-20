@@ -26,6 +26,47 @@ PetFriendlyMapService service(SearchMaps maps) => PetFriendlyMapService(
 );
 void main() {
   test(
+    'regular park search also attaches published rules without changing the official park identity',
+    () async {
+      final raw = jsonDecode(petFixture()) as Map<String, dynamic>;
+      final row = (raw['places'] as List).first as Map<String, dynamic>;
+      row['category'] = 'civic';
+      row['kind'] = '여행지';
+      final park = PlaceInfo(
+        id: 'official-park',
+        name: 'allowed 지점',
+        category: 'park',
+        address: '서울특별시 성동구 왕십리로 10',
+        source: '전국도시공원정보표준데이터',
+        location: GeoSample(37.5, 127, 0, DateTime.now()),
+        fetchedAt: DateTime.now(),
+      );
+      final maps = SearchMaps()..results = [park];
+      final wrapper = PetFriendlyMapService(
+        maps,
+        loadPlaces: () async => PetPlaceCatalog.fromJson(jsonEncode(raw)),
+        loadRegistry: () async => PetFoodRegistry.fromJson(foodFixture()),
+      );
+      final resolved = (await wrapper.search('공원', park.location)).single;
+      expect(resolved.admission?.isAllowed, true);
+      expect(resolved.id, park.id);
+      expect(resolved.category, 'park');
+      expect(resolved.source, park.source);
+      final friendly = (await wrapper.search(
+        '반려동물 동반 allowed 지점',
+        park.location,
+      )).single;
+      expect(friendly.id, park.id);
+      expect(friendly.category, 'park');
+      expect(friendly.source, park.source);
+      expect(friendly.admission?.isAllowed, true);
+      expect(
+        (await wrapper.resolveAdmission(park)).admission?.transportRule,
+        '유모차 또는 이동장',
+      );
+    },
+  );
+  test(
     'friendly searches show sourced allowed places and matching registered food branches only',
     () async {
       final maps = SearchMaps()
@@ -89,7 +130,7 @@ void main() {
     },
   );
   test('normal park search and walking routes still delegate', () async {
-    final maps = SearchMaps()..results = [registeredPlace()];
+    final maps = SearchMaps()..results = [registeredPlace(category: 'park')];
     final wrapper = service(maps),
         center = GeoSample(37.5, 127, 5, DateTime.now());
     expect(await wrapper.search('공원', center), maps.results);

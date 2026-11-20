@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:mungcation/models/pet_admission.dart';
 import 'package:mungcation/models/walk_data.dart';
 import 'package:mungcation/services/pet_place_catalog.dart';
+import 'package:mungcation/services/national_park_catalog.dart';
 
 Future<String> sourceAsset(
   WidgetTester tester,
@@ -21,6 +22,30 @@ Future<String> sourceAsset(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets(
+    'real public parks receive available admission evidence without fabricated permissions',
+    (tester) async {
+      final catalog = PetPlaceCatalog.fromJson(
+        await sourceAsset(tester, 'pet_places.json'),
+      );
+      final parks = NationalParkCatalog.fromJson(
+        await sourceAsset(tester, 'national_parks.json'),
+      );
+      final matches = parks
+          .search('서울특별시', null, limit: 20000)
+          .map((park) => (park, catalog.match(park)))
+          .where((pair) => pair.$2 != null)
+          .toList();
+      expect(matches.length, greaterThan(0));
+      for (final pair in matches) {
+        expect(pair.$2!.admission!.hasEvidence, true);
+        expect(
+          distanceBetween(pair.$1.location, pair.$2!.location),
+          lessThanOrEqualTo(100),
+        );
+      }
+    },
+  );
   testWidgets(
     'published pet data covers all requested kinds and retains restrictions and denials',
     (tester) async {

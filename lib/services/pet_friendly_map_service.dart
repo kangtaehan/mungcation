@@ -46,7 +46,8 @@ class PetFriendlyMapService implements MapService, PlaceAdmissionResolver {
       _places = null;
     }
     final local =
-        catalog?.search(query, center, onlyAllowed: false) ?? <PlaceInfo>[];
+        catalog?.search(query, center, onlyAllowed: parsed.onlyAllowed) ??
+        <PlaceInfo>[];
     final remote = <PlaceInfo>[];
     Object? providerError;
     // General pet discovery is offline. Explicit food/name searches can also

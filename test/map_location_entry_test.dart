@@ -86,7 +86,7 @@ void main() {
         }
         expect(source.requests, 1);
         expect(session.current, source.fix);
-        expect(maps.centers, hasLength(3));
+        expect(maps.centers, hasLength(1));
         expect(maps.centers.every((center) => center == source.fix), true);
         final chosen = PlaceInfo(
           id: 'chosen',
@@ -109,7 +109,7 @@ void main() {
         expect(key.currentState!.routes, isNotEmpty);
         expect(key.currentState!.places, contains(chosen));
         expect(key.currentState!.query.text, '선택한 공원');
-        expect(maps.centers, hasLength(3));
+        expect(maps.centers, hasLength(1));
         expect(
           key.currentState!.centerRequest,
           greaterThan(initialCenterRequest),

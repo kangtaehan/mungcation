@@ -25,6 +25,46 @@ PetFriendlyMapService service(SearchMaps maps) => PetFriendlyMapService(
   loadRegistry: () async => PetFoodRegistry.fromJson(foodFixture()),
 );
 void main() {
+  test('nearby result limit applies after excluding denied records', () async {
+    final raw = jsonDecode(petFixture()) as Map<String, dynamic>;
+    final original = raw['places'] as List;
+    final denied = original[1] as Map<String, dynamic>;
+    raw['places'] = [
+      for (var i = 0; i < 65; i++) {...denied, 'id': 'denied-$i', 'lat': 37.5},
+      {...original.first as Map<String, dynamic>, 'lat': 37.502},
+    ];
+    final wrapper = PetFriendlyMapService(
+      SearchMaps()..offline = true,
+      loadPlaces: () async => PetPlaceCatalog.fromJson(jsonEncode(raw)),
+      loadRegistry: () async => PetFoodRegistry.fromJson(foodFixture()),
+    );
+    final found = await wrapper.search(
+      '반려동물 동반',
+      GeoSample(37.5, 127, 5, DateTime.now()),
+    );
+    expect(found.map((p) => p.id), ['allowed']);
+  });
+  test(
+    'bundled nearby discovery works without an external place provider',
+    () async {
+      final maps = SearchMaps()..offline = true;
+      final wrapper = service(maps);
+      final near = await wrapper.search(
+        '반려동물 동반',
+        GeoSample(37.5, 127, 5, DateTime.now()),
+      );
+      expect(near.map((p) => p.id).toSet(), {'allowed', 'conditional'});
+      expect(near.every((p) => p.admission?.isAllowed == true), true);
+      expect(
+        await wrapper.search(
+          '반려동물 동반',
+          GeoSample(35.1, 129, 5, DateTime.now()),
+        ),
+        isEmpty,
+      );
+      expect(maps.queries, isEmpty);
+    },
+  );
   test(
     'regular park search also attaches published rules without changing the official park identity',
     () async {

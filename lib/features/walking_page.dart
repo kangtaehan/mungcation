@@ -195,23 +195,11 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
       }
       // Show the location immediately; nearby searches may take longer.
       setState(() => centerRequest++);
-      var unavailableSources = 0;
-      Future<List<PlaceInfo>> nearbySearch(String query) async {
-        try {
-          return await widget.maps.search(query, center);
-        } catch (_) {
-          unavailableSources++;
-          return [];
-        }
-      }
-
-      final results = await Future.wait([
-        nearbySearch('반려동물 동반 공원'),
-        nearbySearch('반려동물 동반 식당'),
-        nearbySearch('반려동물 동반'),
-      ]);
+      // The bundled catalog covers all kinds. Initial discovery must not wait
+      // for optional external POI services or treat their outages as no data.
+      final results = await widget.maps.search('반려동물 동반', center);
       final unique = <String, PlaceInfo>{};
-      for (final place in results.expand((items) => items)) {
+      for (final place in results) {
         if (place.admission?.isAllowed != true) continue;
         unique.putIfAbsent(place.id, () => place);
       }
@@ -227,23 +215,25 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
           nearbyCenter = center;
           nearbyMinutes = selection.targetMinutes;
           places = selection.places;
-          discoveredNearby = unique.isNotEmpty || unavailableSources == 0;
-          nearbySummary = selection.usedFallback
+          discoveredNearby = true;
+          nearbySummary = places.isEmpty
+              ? null
+              : selection.usedFallback
               ? '$dogSize 권장 왕복 ${selection.targetMinutes}분 이내 장소가 없어 가장 가까운 후보를 보여드려요.'
               : '$dogSize 기준 예상 왕복 ${selection.targetMinutes}분 이내 장소를 가까운 순서로 보여드려요.';
-          if (unavailableSources > 0) {
-            error = places.isEmpty
-                ? '주변 장소를 조회하지 못했어요. 내 주변을 눌러 다시 시도해 주세요.'
-                : '일부 장소 조회를 완료하지 못해 확인된 자료만 표시해요.';
-          } else if (places.isEmpty) {
+          if (places.isEmpty) {
             error = '동반 가능 자료가 확인된 주변 장소가 없어요. 미확인 장소는 표시하지 않아요.';
           }
         });
         widget.session.places = places;
       }
-    } catch (_) {
+    } catch (failure) {
       if (mounted && request == _request)
-        setState(() => error = '주변 장소를 불러오지 못했어요. 검색으로 다시 시도해 주세요.');
+        setState(
+          () => error = failure is MapServiceFailure
+              ? failure.message
+              : '주변 동반 장소 자료를 불러오지 못했어요. 내 주변을 눌러 다시 시도해 주세요.',
+        );
     } finally {
       if (mounted && request == _request) setState(() => loading = false);
     }

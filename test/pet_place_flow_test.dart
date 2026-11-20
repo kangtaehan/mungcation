@@ -16,6 +16,8 @@ import 'walking_reroute_test.dart' show CapturingMaps;
 
 class PetFlowMaps extends CapturingMaps {
   bool offlineRestaurants = false;
+  bool includeStore = true;
+  bool unavailable = false;
   List<PlaceInfo> extraResults = [];
   final queries = <String>[];
   final store = PlaceInfo(
@@ -37,9 +39,10 @@ class PetFlowMaps extends CapturingMaps {
   @override
   Future<List<PlaceInfo>> search(String query, GeoSample? center) async {
     queries.add(query);
+    if (unavailable) throw StateError('catalog unavailable');
     if (offlineRestaurants && query.contains('식당')) throw StateError('offline');
     return [
-      if (query.contains('마트') || query == '반려동물 동반') store,
+      if (includeStore && (query.contains('마트') || query == '반려동물 동반')) store,
       ...extraResults,
     ];
   }
@@ -87,6 +90,19 @@ void main() {
     () => SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty(),
   );
+  testWidgets('a real catalog failure remains retryable', (tester) async {
+    final maps = PetFlowMaps()..unavailable = true;
+    final page = await mountFlow(tester, maps);
+    expect(page.places, isEmpty);
+    expect(page.discoveredNearby, false);
+    expect(page.error, contains('자료를 불러오지 못했어요'));
+    maps.unavailable = false;
+    await page.discoverNearby();
+    await tester.pumpAndSettle();
+    expect(page.error, isNull);
+    expect(page.places.map((place) => place.id), ['store']);
+    expect(page.discoveredNearby, true);
+  });
   testWidgets(
     'map discovery and every name search exclude unknown, denied and unsourced places',
     (tester) async {
@@ -105,7 +121,7 @@ void main() {
           ),
         ];
       final page = await mountFlow(tester, maps);
-      expect(maps.queries, contains('반려동물 동반 공원'));
+      expect(maps.queries, ['반려동물 동반']);
       expect(maps.queries, isNot(contains('공원')));
       expect(page.places.map((p) => p.id), ['store']);
       expect(
@@ -130,15 +146,31 @@ void main() {
       expect(tester.widget<WalkMap>(find.byType(WalkMap)).places, isEmpty);
     },
   );
-  testWidgets('one unavailable source does not hide published nearby places', (
-    tester,
-  ) async {
-    final maps = PetFlowMaps()..offlineRestaurants = true;
-    final page = await mountFlow(tester, maps);
-    expect(page.places.map((place) => place.id), ['store']);
-    expect(page.error, contains('일부'));
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'nearby discovery does not depend on external restaurant searches',
+    (tester) async {
+      final maps = PetFlowMaps()..offlineRestaurants = true;
+      final page = await mountFlow(tester, maps);
+      expect(page.places.map((place) => place.id), ['store']);
+      expect(page.error, isNull);
+      expect(maps.queries, ['반려동물 동반']);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'no verified nearby records is an empty result rather than a provider failure',
+    (tester) async {
+      final maps = PetFlowMaps()
+        ..offlineRestaurants = true
+        ..includeStore = false;
+      final page = await mountFlow(tester, maps);
+      expect(page.places, isEmpty);
+      expect(page.error, contains('동반 가능 자료가 확인된 주변 장소가 없어요'));
+      expect(page.error, isNot(contains('조회하지 못')));
+      expect(page.discoveredNearby, true);
+      expect(maps.queries, ['반려동물 동반']);
+    },
+  );
   testWidgets('shopping map filter opens sourced branch admission conditions', (
     tester,
   ) async {

@@ -1,8 +1,15 @@
 import unittest
-from update_pet_places import normalize_culture, normalize_food
+from update_pet_places import normalize_culture, normalize_food, protect_dated_food_snapshot
 
 
 class PetPlaceImportTest(unittest.TestCase):
+    def test_undated_online_refresh_cannot_silently_drop_rows_from_a_dated_workbook(self):
+        prior = {'sourceAsOf': '2026-11-20T14:50:00+09:00', 'places': [{'id': 'old'}, {'id': 'new'}]}
+        smaller = {'places': [{'id': 'old'}]}
+        self.assertEqual(protect_dated_food_snapshot(smaller, prior), prior)
+        larger = {'places': [{'id': 'old'}, {'id': 'new'}, {'id': 'extra'}]}
+        self.assertEqual(protect_dated_food_snapshot(larger, prior), larger)
+        self.assertEqual(protect_dated_food_snapshot(smaller, {'places': [{'id': 'old'}]}), smaller)
     def row(self, **changes):
         return {
             '시설명': '테스트 카페', '카테고리3': '카페', '위도': '37.5', '경도': '127',

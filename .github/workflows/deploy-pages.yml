@@ -30,6 +30,8 @@ jobs:
         run: |
           python3 tool/test_update_national_parks.py
           python3 tool/test_update_pet_places.py
+          python3 tool/test_import_pet_food_xlsx.py
+          python3 tool/test_check_pet_tour_connection.py
           python3 tool/test_compare_walking_routes.py
           python3 tool/test_build_release.py
 

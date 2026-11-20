@@ -172,13 +172,26 @@ class PetFoodRegistry {
   final Map<String, List<Map<String, dynamic>>> _names;
   final DateTime retrievedAt;
   final String sourceUrl;
-  PetFoodRegistry._(this._names, this.retrievedAt, this.sourceUrl);
+  final String? sourceAsOf;
+  final String sourceFile;
+  PetFoodRegistry._(
+    this._names,
+    this.retrievedAt,
+    this.sourceUrl,
+    this.sourceAsOf,
+    this.sourceFile,
+  );
   static Future<PetFoodRegistry> load() async => PetFoodRegistry.fromJson(
     await rootBundle.loadString('assets/data/pet_food_registry.json'),
   );
   factory PetFoodRegistry.fromJson(String raw) {
     final data = jsonDecode(raw) as Map<String, dynamic>;
     if (data['schema'] != 1) throw const FormatException('잘못된 동반 음식점 등록 자료');
+    final sourceAsOf = data['sourceAsOf'] as String?;
+    if (sourceAsOf != null &&
+        (!RegExp(r'^\d{4}-\d{2}-\d{2}T').hasMatch(sourceAsOf) ||
+            DateTime.tryParse(sourceAsOf) == null))
+      throw const FormatException('잘못된 등록목록 기준시각');
     final names = <String, List<Map<String, dynamic>>>{};
     for (final row in data['places'] as List) {
       final place = Map<String, dynamic>.from(row as Map);
@@ -190,6 +203,8 @@ class PetFoodRegistry {
       names,
       DateTime.parse(data['retrievedAt'] as String),
       data['sourceUrl'] as String,
+      sourceAsOf,
+      data['sourceFile'] as String? ?? '',
     );
   }
   static String _address(String value) {
@@ -228,10 +243,11 @@ class PetFoodRegistry {
         )
         .toList();
     if (candidates.length != 1) return null;
+    final registryDate = sourceAsOf?.substring(0, 10);
     return PetAdmission(
       status: PetAdmissionStatus.conditional,
       conditions:
-          '식품안전나라에 반려동물 동반출입 업소로 등록되어 있습니다. 유모차·캐리어·동반 구역·크기 제한 등 세부 조건은 업소에 확인해 주세요.',
+          '${sourceFile.isNotEmpty ? '제공 엑셀 등록목록${registryDate == null ? '' : ' ($registryDate 기준)'}에서 확인한 업소입니다. ' : ''}식품안전나라에 반려동물 동반출입 업소로 등록되어 있습니다. 유모차·캐리어·동반 구역·크기 제한 등 세부 조건은 업소에 확인해 주세요.',
       sourceName: '식품안전나라 · 반려동물 동반출입 등록 현황',
       sourceUrl: sourceUrl,
       checkedAt: retrievedAt,

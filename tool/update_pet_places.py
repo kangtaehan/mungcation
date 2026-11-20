@@ -91,6 +91,16 @@ def normalize_food(records):
     return sorted(result.values(), key=lambda place: place['id']), dict(sourceRows=len(records), accepted=len(result))
 
 
+def protect_dated_food_snapshot(incoming, previous):
+    """An undated page must not roll back a dated, user-provided export."""
+    if previous.get('sourceAsOf') and not incoming.get('sourceAsOf'):
+        old_ids = {row['id'] for row in previous['places']}
+        new_ids = {row['id'] for row in incoming['places']}
+        if not old_ids <= new_ids:
+            return previous
+    return incoming
+
+
 def download_culture():
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
     def get(url, data=None):
@@ -144,6 +154,13 @@ def main():
                                 policies=curated['policies'], places=places + curated['places']),
         'pet_food_registry.json': dict(schema=1, retrievedAt=snapshot, sourceUrl=FOOD_URL, report=food_report, places=registered),
     }
+    food_path = assets / 'pet_food_registry.json'
+    if food_path.exists():
+        incoming = payloads['pet_food_registry.json']
+        chosen = protect_dated_food_snapshot(incoming, json.loads(food_path.read_text(encoding='utf-8')))
+        if chosen is not incoming:
+            print('Retained dated food workbook snapshot: undated online data omitted registered rows.')
+        payloads['pet_food_registry.json'] = chosen
     # Validate both sources before replacing either asset. No coordinates are invented.
     for filename, payload in payloads.items():
         (assets / filename).write_text(json.dumps(payload, ensure_ascii=False, separators=(',', ':')) + '\n', encoding='utf-8')

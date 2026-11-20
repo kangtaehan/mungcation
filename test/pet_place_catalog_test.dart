@@ -67,6 +67,21 @@ PlaceInfo registeredPlace({
 
 void main() {
   test(
+    'workbook reference time is shown as registry provenance rather than invented equipment or policy dates',
+    () {
+      final raw = jsonDecode(foodFixture()) as Map<String, dynamic>;
+    raw['sourceAsOf'] = '2026-11-20T00:15:00+09:00';
+      raw['sourceFile'] = '제공 업소현황.xlsx';
+      final policy = PetFoodRegistry.fromJson(
+        jsonEncode(raw),
+      ).match(registeredPlace())!;
+      expect(policy.conditions, contains('2026-11-20'));
+      expect(policy.conditions, contains('제공 엑셀'));
+      expect(policy.referenceDate, isNull);
+      expect(policy.transportRule, isEmpty);
+    },
+  );
+  test(
     'public parks need matching full identity and a travel-place policy, not a cafe policy',
     () {
       final raw = jsonDecode(petFixture()) as Map<String, dynamic>;

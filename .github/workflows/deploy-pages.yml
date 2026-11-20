@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VWORLD_API_KEY: ${{ secrets.VWORLD_API_KEY }}
+      TOUR_API_KEY: ${{ secrets.TOUR_API_KEY }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -32,6 +33,7 @@ jobs:
           python3 tool/test_update_pet_places.py
           python3 tool/test_import_pet_food_xlsx.py
           python3 tool/test_check_pet_tour_connection.py
+          python3 tool/test_update_pet_tour.py
           python3 tool/test_compare_walking_routes.py
           python3 tool/test_build_release.py
 
@@ -43,6 +45,7 @@ jobs:
         run: |
           python3 tool/update_national_parks.py
           python3 tool/update_pet_places.py
+          python3 tool/update_pet_tour.py --detail-limit 60
 
       - name: Install Flutter
         uses: subosito/flutter-action@v2
@@ -65,9 +68,10 @@ jobs:
           cp assets/data/national_parks.json test/fixtures/national_parks.json
           cp assets/data/pet_places.json test/fixtures/pet_places.json
           cp assets/data/pet_food_registry.json test/fixtures/pet_food_registry.json
+          cp assets/data/pet_tour_places.json test/fixtures/pet_tour_places.json
 
       - name: Verify map layout and full place names in Chrome
-        run: flutter test --platform chrome test/platform_support_test.dart test/place_name_display_test.dart test/map_explorer_layout_test.dart test/map_location_entry_test.dart test/national_park_catalog_test.dart test/pet_admission_test.dart test/pet_place_catalog_test.dart test/pet_friendly_map_service_test.dart test/pet_admission_panel_test.dart test/pet_place_map_test.dart test/pet_place_flow_test.dart test/pet_place_data_test.dart test/vworld_configuration_test.dart test/vworld_map_test.dart test/outing_preparation_test.dart test/outing_widgets_test.dart test/place_admission_refresh_test.dart test/public_park_discovery_test.dart
+        run: flutter test --platform chrome test/platform_support_test.dart test/place_name_display_test.dart test/map_explorer_layout_test.dart test/map_location_entry_test.dart test/national_park_catalog_test.dart test/pet_admission_test.dart test/pet_place_catalog_test.dart test/pet_friendly_map_service_test.dart test/pet_admission_panel_test.dart test/pet_place_map_test.dart test/pet_place_flow_test.dart test/pet_place_data_test.dart test/vworld_configuration_test.dart test/vworld_map_test.dart test/outing_preparation_test.dart test/outing_widgets_test.dart test/place_admission_refresh_test.dart test/public_park_discovery_test.dart test/tour_catalog_integration_test.dart
 
       - name: Build web app
         run: python3 tool/build_release.py web
@@ -77,6 +81,7 @@ jobs:
           cmp assets/data/national_parks.json build/web/assets/assets/data/national_parks.json
           cmp assets/data/pet_places.json build/web/assets/assets/data/pet_places.json
           cmp assets/data/pet_food_registry.json build/web/assets/assets/data/pet_food_registry.json
+          cmp assets/data/pet_tour_places.json build/web/assets/assets/data/pet_tour_places.json
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

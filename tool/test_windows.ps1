@@ -23,6 +23,7 @@ try {
             Copy-Item -LiteralPath (Join-Path $workPath 'assets/data/national_parks.json') -Destination (Join-Path $workPath 'test/fixtures/national_parks.json')
             Copy-Item -LiteralPath (Join-Path $workPath 'assets/data/pet_places.json') -Destination (Join-Path $workPath 'test/fixtures/pet_places.json')
             Copy-Item -LiteralPath (Join-Path $workPath 'assets/data/pet_food_registry.json') -Destination (Join-Path $workPath 'test/fixtures/pet_food_registry.json')
+            Copy-Item -LiteralPath (Join-Path $workPath 'assets/data/pet_tour_places.json') -Destination (Join-Path $workPath 'test/fixtures/pet_tour_places.json')
             if (-not $env:CHROME_EXECUTABLE) {
                 $edge = Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe'
                 if (Test-Path -LiteralPath $edge) { $env:CHROME_EXECUTABLE = $edge }

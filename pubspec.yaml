@@ -27,3 +27,4 @@ flutter:
     - assets/data/national_parks.json
     - assets/data/pet_places.json
     - assets/data/pet_food_registry.json
+    - assets/data/pet_tour_places.json

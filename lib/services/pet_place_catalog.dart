@@ -64,8 +64,38 @@ class PetPlaceCatalog {
   }
 
   PetPlaceCatalog._(this.places, this._parkPolicyIds);
-  static Future<PetPlaceCatalog> load() async => PetPlaceCatalog.fromJson(
-    await rootBundle.loadString('assets/data/pet_places.json'),
+  static Future<PetPlaceCatalog> load() async {
+    Future<PetPlaceCatalog?> read(String path) async {
+      try {
+        return PetPlaceCatalog.fromJson(await rootBundle.loadString(path));
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final sources = await Future.wait([
+      read('assets/data/pet_places.json'),
+      read('assets/data/pet_tour_places.json'),
+    ]);
+    final primary = sources[0], tour = sources[1];
+    if (primary == null && tour == null)
+      throw const FormatException('동반 장소 자료를 읽지 못했어요.');
+    if (primary == null) return tour!;
+    if (tour == null) return primary;
+    return PetPlaceCatalog.combine(primary, tour);
+  }
+
+  /// Existing explicit restrictions/denials keep priority for an exact same
+  /// venue. A pet-travel listing must not erase a venue's known equipment rules.
+  factory PetPlaceCatalog.combine(
+    PetPlaceCatalog primary,
+    PetPlaceCatalog tour,
+  ) => PetPlaceCatalog._(
+    List.unmodifiable([
+      ...primary.places,
+      ...tour.places.where((place) => primary.match(place) == null),
+    ]),
+    Set.unmodifiable({...primary._parkPolicyIds, ...tour._parkPolicyIds}),
   );
   factory PetPlaceCatalog.fromJson(String raw) {
     final data = jsonDecode(raw) as Map<String, dynamic>;

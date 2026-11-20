@@ -1,4 +1,5 @@
 import '../models/walk_data.dart';
+import '../models/pet_admission.dart';
 import 'android_map_service.dart';
 import 'map_service.dart';
 import 'national_park_map_service.dart';
@@ -204,6 +205,18 @@ class PetFriendlyMapService
     } catch (_) {
       _places = null;
       throw const MapServiceFailure('동반 장소 자료를 읽지 못했어요. 다시 시도해 주세요.');
+    }
+    if (place.id.startsWith('tour-pet-') &&
+        !catalog.places.any((row) => row.id == place.id)) {
+      return place.withAdmission(
+        const PetAdmission(
+          status: PetAdmissionStatus.unknown,
+          conditions:
+              '현재 관광공사 자료에서 이 장소를 찾지 못했어요. 표출 중지 또는 자료 조회 문제일 수 있어 동반 가능 여부를 다시 확인해 주세요.',
+          sourceName: '한국관광공사 · 현재 자료 재확인 필요',
+          sourceUrl: 'https://www.data.go.kr/data/15135102/openapi.do',
+        ),
+      );
     }
     final policy = catalog.match(place)?.admission;
     var resolved = policy == null ? place : place.withAdmission(policy);

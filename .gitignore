@@ -72,3 +72,4 @@ config/app_keys.json
 test/fixtures/national_parks.json
 test/fixtures/pet_places.json
 test/fixtures/pet_food_registry.json
+test/fixtures/pet_tour_places.json

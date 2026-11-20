@@ -7,6 +7,8 @@ import 'package:mungcation/models/pet_admission.dart';
 import 'package:mungcation/models/walk_data.dart';
 import 'package:mungcation/services/pet_place_catalog.dart';
 import 'package:mungcation/services/national_park_catalog.dart';
+import 'package:mungcation/services/pet_friendly_map_service.dart';
+import 'pet_friendly_map_service_test.dart' show SearchMaps;
 
 Future<String> sourceAsset(
   WidgetTester tester,
@@ -22,6 +24,46 @@ Future<String> sourceAsset(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets(
+    'Samcheok discovery restores public park pins independently of business admission coverage',
+    (tester) async {
+      final parkCatalog = NationalParkCatalog.fromJson(
+        await sourceAsset(tester, 'national_parks.json'),
+      );
+      final petCatalog = PetPlaceCatalog.fromJson(
+        await sourceAsset(tester, 'pet_places.json'),
+      );
+      expect(parkCatalog.search('삼척시 공원', null).length, 24);
+      final delegate = SearchMaps()..offline = true;
+      final service = PetFriendlyMapService(
+        delegate,
+        loadPlaces: () async => petCatalog,
+        loadParks: () async => parkCatalog,
+      );
+      final center = GeoSample(37.445, 129.165, 5, DateTime.now());
+      final places = await service.discoverNearby(center);
+      final parks = places
+          .where((place) => place.hasPublicParkLocation)
+          .toList();
+      expect(parks.length, greaterThan(10));
+      expect(
+        parks.every(
+          (park) =>
+              park.isMapDiscoverable &&
+              distanceBetween(center, park.location) <= 8000,
+        ),
+        true,
+      );
+      expect(parks.any((park) => park.admission == null), true);
+      expect(
+        places
+            .where((place) => !place.hasPublicParkLocation)
+            .every((place) => place.admission?.isAllowed == true),
+        true,
+      );
+      expect(delegate.queries, isEmpty);
+    },
+  );
   testWidgets(
     'real public parks receive available admission evidence without fabricated permissions',
     (tester) async {

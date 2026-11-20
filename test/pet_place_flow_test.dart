@@ -165,7 +165,7 @@ void main() {
         ..includeStore = false;
       final page = await mountFlow(tester, maps);
       expect(page.places, isEmpty);
-      expect(page.error, contains('동반 가능 자료가 확인된 주변 장소가 없어요'));
+      expect(page.error, contains('표시할 주변 공원이나 동반 장소가 없어요'));
       expect(page.error, isNot(contains('조회하지 못')));
       expect(page.discoveredNearby, true);
       expect(maps.queries, ['반려동물 동반']);

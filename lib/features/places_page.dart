@@ -66,7 +66,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
     };
     final effectiveTerm = [
       query.text.trim(),
-      '반려동물 동반',
+      if (category != '공원' && !query.text.trim().endsWith('공원')) '반려동물 동반',
       suffix,
     ].where((value) => value.isNotEmpty).join(' ');
     final request = ++serial;
@@ -90,7 +90,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
       final results = (await widget.maps.search(
         effectiveTerm,
         widget.session.current,
-      )).where((place) => place.admission?.isAllowed == true).toList();
+      )).where((place) => place.isMapDiscoverable).toList();
       if (mounted && request == serial) {
         setState(() => places = results);
         widget.session.places = results;
@@ -178,7 +178,9 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
           if (!savedOnly)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text('동반 가능·조건부 동반 자료가 확인된 장소만 표시해요. 미확인 장소는 제외해요.'),
+              child: Text(
+                '가게는 동반 확인 자료가 있는 곳만, 공원은 공공데이터 위치를 표시해요. 공원 동반 규정은 별도로 확인해 주세요.',
+              ),
             ),
           Wrap(
             spacing: 8,

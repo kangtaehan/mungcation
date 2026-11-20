@@ -187,6 +187,18 @@ class PlaceInfo {
     this.source = 'Apple 지도',
   });
   bool get rewardEligible => category == 'park';
+  bool get hasPublicParkLocation =>
+      category == 'park' &&
+      id.startsWith('kr-park-') &&
+      source.startsWith('공공데이터포털 · 전국도시공원정보표준데이터') &&
+      referenceDate != null &&
+      hasSpecificParkName &&
+      location.valid;
+  bool get isMapDiscoverable =>
+      admission?.isAllowed == true ||
+      (hasPublicParkLocation &&
+          !(admission?.hasEvidence == true &&
+              admission?.status == PetAdmissionStatus.notAllowed));
   bool get hasSpecificParkName =>
       name.trim().isNotEmpty &&
       !const ['이름 정보 없음', '공원', '미상', '미정', '없음', '-'].contains(name.trim()) &&
@@ -272,6 +284,7 @@ class PlaceInfo {
   String? mapSubtitle(String? extra) {
     final parts = [
       if (admission != null) admission!.mapLabel,
+      if (admission == null && hasPublicParkLocation) '공원 · 동반 규정 미확인',
       if (extra != null && extra.isNotEmpty) extra,
     ];
     return parts.isEmpty ? null : parts.join(' · ');

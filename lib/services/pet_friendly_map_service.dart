@@ -2,20 +2,88 @@ import '../models/walk_data.dart';
 import 'android_map_service.dart';
 import 'map_service.dart';
 import 'national_park_map_service.dart';
+import 'national_park_catalog.dart';
 import 'pet_place_catalog.dart';
 
-class PetFriendlyMapService implements MapService, PlaceAdmissionResolver {
+class PetFriendlyMapService
+    implements MapService, PlaceAdmissionResolver, NearbyPlaceProvider {
   final MapService delegate;
   final Future<PetPlaceCatalog> Function() loadPlaces;
   final Future<PetFoodRegistry> Function() loadRegistry;
+  final Future<NationalParkCatalog> Function() loadParks;
+  Future<NationalParkCatalog>? _parks;
   Future<PetPlaceCatalog>? _places;
   Future<PetFoodRegistry>? _registry;
   PetFriendlyMapService(
     this.delegate, {
     Future<PetPlaceCatalog> Function()? loadPlaces,
     Future<PetFoodRegistry> Function()? loadRegistry,
+    Future<NationalParkCatalog> Function()? loadParks,
   }) : loadPlaces = loadPlaces ?? PetPlaceCatalog.load,
-       loadRegistry = loadRegistry ?? PetFoodRegistry.load;
+       loadRegistry = loadRegistry ?? PetFoodRegistry.load,
+       loadParks = loadParks ?? NationalParkCatalog.load;
+
+  @override
+  Future<List<PlaceInfo>> discoverNearby(GeoSample center) async {
+    if (!center.valid) throw const MapServiceFailure('현재 위치를 다시 확인해 주세요.');
+    var available = 0;
+    Future<List<PlaceInfo>> read(
+      Future<List<PlaceInfo>> Function() action,
+    ) async {
+      try {
+        final places = await action();
+        available++;
+        return places;
+      } catch (_) {
+        return [];
+      }
+    }
+
+    final sources = await Future.wait([
+      read(() => search('반려동물 동반', center)),
+      read(() async {
+        try {
+          return (await (_parks ??= loadParks())).search('공원', center);
+        } catch (_) {
+          _parks = null;
+          rethrow;
+        }
+      }),
+    ]);
+    if (available == 0)
+      throw const MapServiceFailure(
+        '주변 공원과 동반 장소 자료를 읽지 못했어요. 내 주변을 눌러 다시 시도해 주세요.',
+      );
+    PetPlaceCatalog? catalog;
+    final pending = _places;
+    if (pending != null) {
+      try {
+        catalog = await pending;
+      } catch (_) {
+        /* Park locations remain usable. */
+      }
+    }
+    final found = <String, PlaceInfo>{};
+    for (final candidate in sources.expand((places) => places)) {
+      final matched = catalog?.match(candidate);
+      final place = matched?.admission == null
+          ? candidate
+          : candidate.withAdmission(matched!.admission!);
+      if (!place.isMapDiscoverable) continue;
+      final identity = matched?.id ?? place.id;
+      if (place.hasPublicParkLocation) {
+        found[identity] = place;
+      } else {
+        found.putIfAbsent(identity, () => place);
+      }
+    }
+    return found.values.toList()..sort(
+      (a, b) => distanceBetween(
+        center,
+        a.location,
+      ).compareTo(distanceBetween(center, b.location)),
+    );
+  }
 
   @override
   Future<List<PlaceInfo>> search(String query, GeoSample? center) async {

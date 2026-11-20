@@ -49,6 +49,11 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
   GeoSample? routeOrigin;
   bool returningHome = false;
   bool routeIsReturnOnly = false;
+  List<PlaceInfo> get mapPlaces => <String, PlaceInfo>{
+    if (nearbyCenter != null)
+      for (final place in nearbyCandidates) place.id: place,
+    for (final place in places) place.id: place,
+  }.values.where((place) => place.isMapDiscoverable).toList();
   @override
   void initState() {
     super.initState();
@@ -197,10 +202,13 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
       setState(() => centerRequest++);
       // The bundled catalog covers all kinds. Initial discovery must not wait
       // for optional external POI services or treat their outages as no data.
-      final results = await widget.maps.search('반려동물 동반', center);
+      final maps = widget.maps;
+      final results = maps is NearbyPlaceProvider
+          ? await (maps as NearbyPlaceProvider).discoverNearby(center)
+          : await maps.search('반려동물 동반', center);
       final unique = <String, PlaceInfo>{};
       for (final place in results) {
-        if (place.admission?.isAllowed != true) continue;
+        if (!place.isMapDiscoverable) continue;
         unique.putIfAbsent(place.id, () => place);
       }
       if (mounted && request == _request) {
@@ -221,8 +229,8 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
               : selection.usedFallback
               ? '$dogSize 권장 왕복 ${selection.targetMinutes}분 이내 장소가 없어 가장 가까운 후보를 보여드려요.'
               : '$dogSize 기준 예상 왕복 ${selection.targetMinutes}분 이내 장소를 가까운 순서로 보여드려요.';
-          if (places.isEmpty) {
-            error = '동반 가능 자료가 확인된 주변 장소가 없어요. 미확인 장소는 표시하지 않아요.';
+          if (unique.isEmpty) {
+            error = '표시할 주변 공원이나 동반 장소가 없어요. 미확인 가게는 표시하지 않아요.';
           }
         });
         widget.session.places = places;
@@ -243,7 +251,12 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
     if (query.text.trim().isEmpty) return;
     final text = query.text.trim();
     final parsed = PetPlaceQuery(text);
-    final effective = parsed.onlyAllowed ? text : '반려동물 동반 $text';
+    final clean = PetPlaceQuery.clean(text);
+    final effective = clean.endsWith('공원')
+        ? clean
+        : parsed.onlyAllowed
+        ? text
+        : '반려동물 동반 $text';
     final request = ++_request;
     setState(() {
       loading = true;
@@ -253,7 +266,7 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
       final found = (await widget.maps.search(
         effective,
         widget.session.current,
-      )).where((place) => place.admission?.isAllowed == true).toList();
+      )).where((place) => place.isMapDiscoverable).toList();
       if (mounted && request == _request) {
         setState(() {
           places = found;
@@ -261,7 +274,7 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
           nearbyCandidates = [];
           nearbyCenter = null;
           if (found.isEmpty) {
-            error = '동반 가능 자료가 확인된 장소를 찾지 못했어요. 미확인 장소는 표시하지 않아요.';
+            error = '표시할 공원이나 동반 장소를 찾지 못했어요. 미확인 가게는 표시하지 않아요.';
           }
         });
         widget.session.places = found;
@@ -481,7 +494,7 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
         ),
         const SizedBox(width: 8),
         const Chip(
-          label: const Text('동반 가능만'),
+          label: const Text('동반 가게 · 공원'),
           avatar: Icon(Icons.verified_outlined, size: 16),
         ),
         for (final entry in const {
@@ -604,14 +617,14 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
               ? null
               : navigator?.update(walk.current!) ??
                     navigationGuidance(planned, walk.current!),
-          visiblePlaces = places
-              .where((place) => place.admission?.isAllowed == true)
+          visiblePlaces = mapPlaces,
+          pointPlaces = places
+              .where((place) => place.isMapDiscoverable && place.rewardEligible)
               .toList(),
-          pointPlaces = visiblePlaces
-              .where((place) => place.rewardEligible)
-              .toList(),
-          recommendedPlaces = visiblePlaces
-              .where((place) => !place.rewardEligible)
+          recommendedPlaces = places
+              .where(
+                (place) => place.isMapDiscoverable && !place.rewardEligible,
+              )
               .toList(),
           recentVisits = widget.controller.data.realWalks.reversed
               .expand((record) => record.visits.reversed)
@@ -638,7 +651,7 @@ class WalkingPageState extends State<WalkingPage> with WidgetsBindingObserver {
               ? const Color(0xFF28734E)
               : safetyReports[selectedRoute].color,
           onPlace: (id) {
-            final place = places.where((p) => p.id == id).firstOrNull;
+            final place = visiblePlaces.where((p) => p.id == id).firstOrNull;
             if (place != null) showPlace(place);
           },
         ),

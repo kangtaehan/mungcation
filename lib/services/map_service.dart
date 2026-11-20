@@ -12,6 +12,11 @@ abstract interface class PlaceAdmissionResolver {
   Future<PlaceInfo> resolveAdmission(PlaceInfo place);
 }
 
+/// Bundled public park locations and evidence-backed pet-friendly businesses.
+abstract interface class NearbyPlaceProvider {
+  Future<List<PlaceInfo>> discoverNearby(GeoSample center);
+}
+
 class AppleMapService implements MapService {
   static const channel = MethodChannel('mungcation/maps');
   @override
